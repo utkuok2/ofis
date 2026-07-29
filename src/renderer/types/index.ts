@@ -1,0 +1,65 @@
+export interface Yonetici {
+  id: number
+  ad: string
+  soyad: string
+  unvan: string
+  avatar: string
+  ofis_konum_x: number
+  ofis_konum_y: number
+}
+
+export interface EkipGrubu {
+  id: number
+  ad: string
+  renk: string
+  kat_no: number
+}
+
+export interface Ekip {
+  id: number
+  ad: string
+  ekip_grubu_id: number
+  yonetici_id: number | null
+  ai_model_id: number | null
+  oda_konum_x: number
+  oda_konum_y: number
+  oda_genislik: number
+  oda_yukseklik: number
+  ekip_grubu_adi?: string
+  yonetici_adi?: string
+  ai_model_adi?: string
+  ai_model_id_str?: string
+}
+
+export interface AIModel {
+  id: number
+  ad: string
+  model_id: string
+  api_url: string
+  ucretsiz: boolean
+  aktif: boolean
+}
+
+export interface Kullanici {
+  id: number
+  ad: string
+  avatar: string
+  konum_x: number
+  konum_y: number
+}
+
+export interface Mesaj {
+  id: number
+  ekip_id: number
+  ai_model_id: number
+  mesaj: string
+  yanit: string | null
+  tarih: string
+}
+
+export type AktifPanel = 'harita' | 'yonetim' | 'sohbet' | 'ayarlar'
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system'
+  content: string
+}
