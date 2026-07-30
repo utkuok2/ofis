@@ -19,8 +19,9 @@ export function Header() {
           onClick={() => {
             if (confirm('Veritabanı sıfırlansın mı? Tüm veriler silinecek ve sayfa yenilenecek.')) {
               localStorage.clear()
-              indexedDB.deleteDatabase('ofis')
-              window.location.reload()
+              const req = indexedDB.deleteDatabase('ofis')
+              req.onsuccess = () => window.location.reload()
+              req.onerror = () => window.location.reload()
             }
           }}
           className="text-xs text-gray-500 hover:text-red-400 transition-colors cursor-pointer"

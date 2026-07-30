@@ -7,6 +7,7 @@ const AI_MODELS_SEED: { ad: string; model_id: string }[] = [
   { ad: 'Phi-3 Mini (Free)', model_id: 'microsoft/phi-3-mini-128k-instruct:free' },
   { ad: 'Gemma 2 2B (Free)', model_id: 'google/gemma-2-2b-it:free' },
   { ad: 'Dolphin Mixtral (Free)', model_id: 'cognitivecomputations/dolphin-mixtral-8x7b:free' },
+  { ad: 'OpenRouter Free (Auto)', model_id: 'openrouter/free' },
 ]
 
 class OfisDatabase extends Dexie {
@@ -59,8 +60,8 @@ class OfisDatabase extends Dexie {
 
   async initialize() {
     await this.open()
-    const modelCount = await this.aiModelleri.count()
-    if (modelCount === 0) {
+
+    if (await this.aiModelleri.count() === 0) {
       await this.aiModelleri.bulkAdd(
         AI_MODELS_SEED.map((m) => ({
           ...m,
@@ -71,8 +72,30 @@ class OfisDatabase extends Dexie {
       )
     }
 
-    const userCount = await this.kullanici.count()
-    if (userCount === 0) {
+    if (await this.yoneticiler.count() === 0) {
+      await this.yoneticiler.bulkAdd([
+        { id: 1, ad: 'Ahmet', soyad: 'Yılmaz', unvan: 'Takım Lideri', avatar: '', ofis_konum_x: 200, ofis_konum_y: 200 },
+        { id: 2, ad: 'Ayşe', soyad: 'Demir', unvan: 'Proje Yöneticisi', avatar: '', ofis_konum_x: 500, ofis_konum_y: 200 },
+      ])
+    }
+
+    if (await this.ekipGruplari.count() === 0) {
+      await this.ekipGruplari.bulkAdd([
+        { id: 1, ad: 'Geliştirme', renk: '#4A90D9', kat_no: 1 },
+        { id: 2, ad: 'Tasarım', renk: '#D94A4A', kat_no: 1 },
+      ])
+    }
+
+    if (await this.ekipler.count() === 0) {
+      await this.ekipler.bulkAdd([
+        { id: 1, ad: 'Frontend Ekibi', ekip_grubu_id: 1, yonetici_id: 1, ai_model_id: 6, oda_konum_x: 60, oda_konum_y: 100, oda_genislik: 180, oda_yukseklik: 100 },
+        { id: 2, ad: 'Backend Ekibi', ekip_grubu_id: 1, yonetici_id: 1, ai_model_id: 1, oda_konum_x: 320, oda_konum_y: 100, oda_genislik: 200, oda_yukseklik: 100 },
+        { id: 3, ad: 'UI/UX Ekibi', ekip_grubu_id: 2, yonetici_id: 2, ai_model_id: 2, oda_konum_x: 60, oda_konum_y: 280, oda_genislik: 180, oda_yukseklik: 100 },
+        { id: 4, ad: 'DevOps Ekibi', ekip_grubu_id: 1, yonetici_id: 1, ai_model_id: 3, oda_konum_x: 320, oda_konum_y: 280, oda_genislik: 200, oda_yukseklik: 100 },
+      ])
+    }
+
+    if (await this.kullanici.count() === 0) {
       await this.kullanici.add({
         id: 1,
         ad: 'Ben',
