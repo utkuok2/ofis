@@ -1,188 +1,385 @@
 import React, { useRef, useEffect, useCallback } from 'react'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
 import { useOfisStore } from '../../store/useOfisStore'
 
-const TILE_SIZE = 40
-const MAP_COLS = 30
-const MAP_ROWS = 20
-const WALL_HEIGHT = 20
-const ROOM_HEIGHT = 16
+const TILE = 40
+const COLS = 30
+const ROWS = 20
+const WALL_H = 20
+const ROOM_H = 16
+const FLOOR2_Y = 40
+const EYE_H = 28
 
-function createGrid() {
-  const grid: string[][] = []
-  for (let r = 0; r < MAP_ROWS; r++) {
+function grid() {
+  const g: string[][] = []
+  for (let r = 0; r < ROWS; r++) {
     const row: string[] = []
-    for (let c = 0; c < MAP_COLS; c++) {
-      if (r === 0 || r === MAP_ROWS - 1 || c === 0 || c === MAP_COLS - 1) {
-        row.push('duvar')
-      } else if (r === 1 && c > 1 && c < MAP_COLS - 2 && c !== 10 && c !== 20) {
-        row.push('koridor')
-      } else {
-        row.push('zemin')
-      }
+    for (let c = 0; c < COLS; c++) {
+      if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) row.push('duvar')
+      else if (r === 1 && c > 1 && c < COLS - 2 && c !== 10 && c !== 20) row.push('koridor')
+      else row.push('zemin')
     }
-    grid.push(row)
+    g.push(row)
   }
-  return grid
+  return g
+}
+
+function masa(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0) {
+  const mat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 })
+  const top = new THREE.Mesh(new THREE.BoxGeometry(24, 1.5, 14), mat)
+  top.position.set(x, yBase + 7, z)
+  top.castShadow = true; top.receiveShadow = true
+  scene.add(top)
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9 })
+  for (const [dx, dz] of [[-10, -5], [10, -5], [-10, 5], [10, 5]]) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(1.5, 7, 1.5), legMat)
+    l.position.set(x + dx, yBase + 3.5, z + dz)
+    l.castShadow = true
+    scene.add(l)
+  }
+}
+
+function sandalye(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0) {
+  const mat = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.6 })
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 10), mat)
+  seat.position.set(x, yBase + 5, z)
+  seat.castShadow = true; seat.receiveShadow = true
+  scene.add(seat)
+  const back = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 1.5), mat)
+  back.position.set(x, yBase + 11, z - 5.5)
+  back.castShadow = true
+  scene.add(back)
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x1a202c })
+  for (const [dx, dz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(1.5, 5, 1.5), legMat)
+    l.position.set(x + dx, yBase + 2.5, z + dz)
+    l.castShadow = true
+    scene.add(l)
+  }
+}
+
+function bilgisayar(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0) {
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1a202c, roughness: 0.3, metalness: 0.2 })
+  const monitor = new THREE.Mesh(new THREE.BoxGeometry(10, 8, 1), dark)
+  monitor.position.set(x, yBase + 10.5, z - 4)
+  monitor.castShadow = true
+  scene.add(monitor)
+  const screen = new THREE.Mesh(
+    new THREE.BoxGeometry(9, 7, 0.2),
+    new THREE.MeshStandardMaterial({ color: 0x1e3a5f, emissive: 0x1e3a5f, emissiveIntensity: 0.3 })
+  )
+  screen.position.set(x, yBase + 10.5, z - 3.4)
+  scene.add(screen)
+  for (const [s, yOff] of [[1.5, 6.5], [1.5, 6.5], [4, 5.25]] as const) {
+    const p = new THREE.Mesh(
+      new THREE.BoxGeometry(s === 4 ? 4 : 1.5, s === 4 ? 0.5 : 3, s === 4 ? 3 : 1.5),
+      dark
+    )
+    p.position.set(x, yBase + yOff, z - 4)
+    scene.add(p)
+  }
+  const kb = new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 3), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3 }))
+  kb.position.set(x, yBase + 7.25, z + 1)
+  scene.add(kb)
+}
+
+function toplantiMasasi(scene: THREE.Scene | THREE.Group, x: number, z: number, w = 60, d = 30, yBase = 0) {
+  const mat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.7, metalness: 0.1 })
+  const top = new THREE.Mesh(new THREE.BoxGeometry(w, 2, d), mat)
+  top.position.set(x, yBase + 7, z)
+  top.castShadow = true; top.receiveShadow = true
+  scene.add(top)
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9 })
+  for (const [dx, dz] of [[-w / 2 + 4, -d / 2 + 4], [w / 2 - 4, -d / 2 + 4], [-w / 2 + 4, d / 2 - 4], [w / 2 - 4, d / 2 - 4]]) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(2, 7, 2), legMat)
+    l.position.set(x + dx, yBase + 3.5, z + dz)
+    l.castShadow = true
+    scene.add(l)
+  }
+}
+
+function mobilyaEkip(group: THREE.Group, x: number, z: number) {
+  for (let i = 0; i < 3; i++) {
+    const ox = 30 + i * 50
+    masa(group, x + ox, z + 30)
+    sandalye(group, x + ox, z + 45)
+    bilgisayar(group, x + ox, z + 30)
+  }
+}
+
+function aiKarakter(scene: THREE.Scene | THREE.Group, x: number, z: number, renk: string) {
+  const color = new THREE.Color(renk)
+  const g = new THREE.Group()
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(8, 10, 24, 8),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.4, emissive: color, emissiveIntensity: 0.15 })
+  )
+  body.position.y = 12
+  body.castShadow = true
+  g.add(body)
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(7, 10, 10),
+    new THREE.MeshStandardMaterial({ color: 0x9333ea, roughness: 0.2, emissive: 0x9333ea, emissiveIntensity: 0.3 })
+  )
+  head.position.y = 27
+  head.castShadow = true
+  g.add(head)
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(10, 0.8, 8, 24),
+    new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x7c3aed, emissiveIntensity: 0.5, transparent: true, opacity: 0.6 })
+  )
+  ring.position.y = 14
+  ring.rotation.x = Math.PI / 2
+  g.add(ring)
+  g.position.set(x, 0, z)
+  scene.add(g)
+  return g
+}
+
+function merdiven(scene: THREE.Scene) {
+  const sm = new THREE.MeshStandardMaterial({ color: 0x718096, roughness: 0.7 })
+  const n = Math.ceil(FLOOR2_Y / 8)
+  for (let i = 0; i < n; i++) {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(60, 8, 16), sm)
+    s.position.set(COLS * TILE - 80, (i + 0.5) * 8, ROWS * TILE - 80 - i * 16)
+    s.castShadow = true; s.receiveShadow = true
+    scene.add(s)
+  }
+  const rm = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.5 })
+  for (const side of [-1, 1]) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4, n * 16), rm)
+    r.position.set(COLS * TILE - 80 + side * 31, FLOOR2_Y - 4, ROWS * TILE - 80 - (n - 1) * 8)
+    scene.add(r)
+  }
 }
 
 export function OfficeMap3D() {
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
-  const controlsRef = useRef<OrbitControls | null>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const labelRendererRef = useRef<CSS2DRenderer | null>(null)
-  const animFrameRef = useRef<number>(0)
+  const animRef = useRef<number>(0)
   const roomGroupRef = useRef<THREE.Group>(new THREE.Group())
   const labelGroupRef = useRef<THREE.Group>(new THREE.Group())
-  const characterRef = useRef<THREE.Group | null>(null)
+  const aiCharsRef = useRef<THREE.Group[]>([])
+  const yawRef = useRef(0)
+  const pitchRef = useRef(0)
+  const lockedRef = useRef(false)
+  const keysRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-    const w = container.clientWidth
-    const h = container.clientHeight
+    const el = containerRef.current
+    if (!el) return
+    const w = el.clientWidth, h = el.clientHeight
 
-    const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x1a202c)
-    sceneRef.current = scene
+    const sc = new THREE.Scene()
+    sc.background = new THREE.Color(0x1a202c)
+    sc.fog = new THREE.Fog(0x1a202c, 900, 1800)
+    sceneRef.current = sc
 
-    const camera = new THREE.PerspectiveCamera(45, w / h, 1, 3000)
-    camera.position.set(800, 600, 800)
-    camera.lookAt(600, 0, 400)
-    cameraRef.current = camera
+    const cam = new THREE.PerspectiveCamera(72, w / h, 0.5, 2000)
+    const k0 = useOfisStore.getState().kullanici
+    cam.position.set(k0?.konum_x || 400, EYE_H, k0?.konum_y || 300)
+    cameraRef.current = cam
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
-    renderer.setSize(w, h)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
-    container.appendChild(renderer.domElement)
-    rendererRef.current = renderer
+    const ren = new THREE.WebGLRenderer({ antialias: true })
+    ren.setSize(w, h)
+    ren.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    ren.shadowMap.enabled = true
+    ren.shadowMap.type = THREE.PCFSoftShadowMap
+    ren.toneMapping = THREE.ACESFilmicToneMapping
+    ren.toneMappingExposure = 1.2
+    el.appendChild(ren.domElement)
+    rendererRef.current = ren
 
-    const labelRenderer = new CSS2DRenderer()
-    labelRenderer.setSize(w, h)
-    labelRenderer.domElement.style.position = 'absolute'
-    labelRenderer.domElement.style.top = '0'
-    labelRenderer.domElement.style.left = '0'
-    labelRenderer.domElement.style.pointerEvents = 'none'
-    container.appendChild(labelRenderer.domElement)
-    labelRendererRef.current = labelRenderer
+    const lr = new CSS2DRenderer()
+    lr.setSize(w, h)
+    lr.domElement.style.position = 'absolute'
+    lr.domElement.style.top = '0'
+    lr.domElement.style.left = '0'
+    lr.domElement.style.pointerEvents = 'none'
+    el.appendChild(lr.domElement)
+    labelRendererRef.current = lr
 
-    const controls = new OrbitControls(camera, renderer.domElement)
-    controls.target.set(600, 0, 400)
-    controls.maxPolarAngle = Math.PI / 2.1
-    controls.minDistance = 200
-    controls.maxDistance = 1500
-    controls.enableDamping = true
-    controls.dampingFactor = 0.1
-    controlsRef.current = controls
+    sc.add(new THREE.AmbientLight(0x404070, 0.4))
+    sc.add(new THREE.HemisphereLight(0x87ceeb, 0x362d59, 0.6))
 
-    const ambientLight = new THREE.AmbientLight(0x404060, 0.6)
-    scene.add(ambientLight)
+    const dl = new THREE.DirectionalLight(0xffeedd, 1.5)
+    dl.position.set(COLS * TILE / 2, 400, 200)
+    dl.castShadow = true
+    dl.shadow.mapSize.width = 2048
+    dl.shadow.mapSize.height = 2048
+    dl.shadow.camera.near = 1
+    dl.shadow.camera.far = 800
+    dl.shadow.camera.left = -800
+    dl.shadow.camera.right = 800
+    dl.shadow.camera.top = 800
+    dl.shadow.camera.bottom = -800
+    sc.add(dl)
+    const fl = new THREE.DirectionalLight(0x8888ff, 0.3)
+    fl.position.set(-300, 200, -400)
+    sc.add(fl)
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2)
-    dirLight.position.set(400, 500, 300)
-    dirLight.castShadow = true
-    dirLight.shadow.mapSize.width = 2048
-    dirLight.shadow.mapSize.height = 2048
-    dirLight.shadow.camera.near = 1
-    dirLight.shadow.camera.far = 1200
-    dirLight.shadow.camera.left = -800
-    dirLight.shadow.camera.right = 800
-    dirLight.shadow.camera.top = 800
-    dirLight.shadow.camera.bottom = -800
-    scene.add(dirLight)
+    const g = grid()
+    const tileGeo = new THREE.BoxGeometry(TILE, 1, TILE)
 
-    const fillLight = new THREE.DirectionalLight(0x8888ff, 0.3)
-    fillLight.position.set(-300, 200, -200)
-    scene.add(fillLight)
-
-    const grid = createGrid()
-    const tileGeo = new THREE.BoxGeometry(TILE_SIZE, 1, TILE_SIZE)
-
-    for (let r = 0; r < MAP_ROWS; r++) {
-      for (let c = 0; c < MAP_COLS; c++) {
-        const x = c * TILE_SIZE + TILE_SIZE / 2
-        const z = r * TILE_SIZE + TILE_SIZE / 2
-        const tile = grid[r][c]
-
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const x = c * TILE + TILE / 2, z = r * TILE + TILE / 2
+        const tile = g[r][c]
         if (tile === 'duvar') {
-          const mat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.8 })
-          const mesh = new THREE.Mesh(tileGeo, mat)
-          mesh.position.set(x, WALL_HEIGHT / 2, z)
-          mesh.scale.y = WALL_HEIGHT
-          mesh.castShadow = true
-          mesh.receiveShadow = true
-          scene.add(mesh)
+          const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.85 }))
+          m.position.set(x, WALL_H / 2, z)
+          m.scale.y = WALL_H
+          m.castShadow = true; m.receiveShadow = true
+          sc.add(m)
         } else {
-          const color = tile === 'koridor' ? 0xcbd5e0 : 0xe2e8f0
-          const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.9 })
-          const mesh = new THREE.Mesh(tileGeo, mat)
-          mesh.position.set(x, 0.5, z)
-          mesh.receiveShadow = true
-          scene.add(mesh)
+          const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({ color: tile === 'koridor' ? 0xcbd5e0 : 0xe2e8f0, roughness: 0.95 }))
+          m.position.set(x, 0.5, z)
+          m.receiveShadow = true
+          sc.add(m)
+          if (tile === 'zemin' && (r + c) % 2 === 0) {
+            const a = new THREE.Mesh(new THREE.BoxGeometry(TILE - 2, 0.1, TILE - 2), new THREE.MeshStandardMaterial({ color: 0xd0d8e0, roughness: 0.95 }))
+            a.position.set(x, 1, z)
+            sc.add(a)
+          }
         }
       }
     }
 
-    scene.add(roomGroupRef.current)
-    scene.add(labelGroupRef.current)
+    const slab = new THREE.Mesh(
+      new THREE.PlaneGeometry(COLS * TILE, ROWS * TILE),
+      new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.9, side: THREE.DoubleSide })
+    )
+    slab.rotation.x = -Math.PI / 2
+    slab.position.set(COLS * TILE / 2, FLOOR2_Y, ROWS * TILE / 2)
+    slab.receiveShadow = true
+    sc.add(slab)
 
-    const charGroup = new THREE.Group()
-    const bodyGeo = new THREE.CylinderGeometry(10, 12, 28, 8)
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4299e1, roughness: 0.5, metalness: 0.1 })
-    const body = new THREE.Mesh(bodyGeo, bodyMat)
-    body.position.y = 14
-    body.castShadow = true
-    charGroup.add(body)
+    const ceil = new THREE.Mesh(
+      new THREE.PlaneGeometry(COLS * TILE, ROWS * TILE),
+      new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.9, side: THREE.DoubleSide })
+    )
+    ceil.rotation.x = Math.PI / 2
+    ceil.position.set(COLS * TILE / 2, FLOOR2_Y + WALL_H, ROWS * TILE / 2)
+    sc.add(ceil)
 
-    const headGeo = new THREE.SphereGeometry(8, 12, 12)
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.4 })
-    const head = new THREE.Mesh(headGeo, headMat)
-    head.position.y = 30
-    head.castShadow = true
-    charGroup.add(head)
+    merdiven(sc)
 
-    const k = useOfisStore.getState().kullanici
-    if (k) {
-      charGroup.position.x = k.konum_x
-      charGroup.position.z = k.konum_y
+    const tx = COLS * TILE / 2, tz = ROWS * TILE / 2, tw = 300, td = 200
+    const tMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.8, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+    for (const [s, p] of [
+      [[tw, WALL_H, 1], [tx, FLOOR2_Y + WALL_H / 2, tz - td / 2]] as const,
+      [[tw, WALL_H, 1], [tx, FLOOR2_Y + WALL_H / 2, tz + td / 2]] as const,
+      [[1, WALL_H, td], [tx - tw / 2, FLOOR2_Y + WALL_H / 2, tz]] as const,
+      [[1, WALL_H, td], [tx + tw / 2, FLOOR2_Y + WALL_H / 2, tz]] as const,
+    ]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(s[0], s[1], s[2]), tMat)
+      m.position.set(p[0], p[1], p[2])
+      m.castShadow = true; m.receiveShadow = true
+      sc.add(m)
     }
-    scene.add(charGroup)
-    characterRef.current = charGroup
 
-    function animate() {
-      animFrameRef.current = requestAnimationFrame(animate)
-      controls.update()
-      renderer.render(scene, camera)
-      labelRenderer.render(scene, camera)
+    toplantiMasasi(sc, tx, tz, tw - 80, td - 80, FLOOR2_Y)
+    for (const [sx, sz] of [
+      [tx, tz - td / 2 + 20], [tx, tz + td / 2 - 20],
+      [tx - tw / 2 + 20, tz], [tx + tw / 2 - 20, tz],
+      [tx - 40, tz - td / 2 + 20], [tx + 40, tz + td / 2 - 20],
+    ]) {
+      sandalye(sc, sx, sz, FLOOR2_Y)
     }
-    animate()
 
-    function handleResize() {
-      const c = container
-      if (!c) return
-      const cw = c.clientWidth
-      const ch = c.clientHeight
-      camera.aspect = cw / ch
-      camera.updateProjectionMatrix()
-      renderer.setSize(cw, ch)
-      labelRenderer.setSize(cw, ch)
+    const tDiv = document.createElement('div')
+    tDiv.style.cssText = 'color:#e2e8f0;font-size:14px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
+    tDiv.textContent = '🏢 Toplantı Salonu (2. Kat)'
+    const tLabel = new CSS2DObject(tDiv)
+    tLabel.position.set(tx, FLOOR2_Y + WALL_H + 4, tz - td / 2)
+    sc.add(tLabel)
+
+    const katDiv = document.createElement('div')
+    katDiv.style.cssText = 'color:#94a3b8;font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,0.8);background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:4px;pointer-events:none;'
+    katDiv.textContent = '2. Kat — Toplantı Salonu'
+    const katLabel = new CSS2DObject(katDiv)
+    katLabel.position.set(tx, FLOOR2_Y + 2, tz)
+    sc.add(katLabel)
+
+    sc.add(roomGroupRef.current)
+    sc.add(labelGroupRef.current)
+
+    function anim() {
+      animRef.current = requestAnimationFrame(anim)
+      const pressed = keysRef.current
+      if (lockedRef.current && pressed.size > 0) {
+        const yaw = yawRef.current
+        const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw))
+        const rgt = new THREE.Vector3(fwd.z, 0, -fwd.x)
+        const spd = 8
+        let dx = 0, dz = 0
+        if (pressed.has('w') || pressed.has('W') || pressed.has('ArrowUp')) { dx += fwd.x * spd; dz += fwd.z * spd }
+        if (pressed.has('s') || pressed.has('S') || pressed.has('ArrowDown')) { dx -= fwd.x * spd; dz -= fwd.z * spd }
+        if (pressed.has('a') || pressed.has('A') || pressed.has('ArrowLeft')) { dx -= rgt.x * spd; dz -= rgt.z * spd }
+        if (pressed.has('d') || pressed.has('D') || pressed.has('ArrowRight')) { dx += rgt.x * spd; dz += rgt.z * spd }
+        if (dx !== 0 || dz !== 0) {
+          const k = useOfisStore.getState().kullanici
+          if (k) {
+            const nx = Math.max(0, Math.min(COLS * TILE, k.konum_x + dx))
+            const nz = Math.max(0, Math.min(ROWS * TILE, k.konum_y + dz))
+            cam.position.x = nx; cam.position.z = nz
+            useOfisStore.getState().kullaniciHareket(nx - k.konum_x, nz - k.konum_y)
+          }
+        }
+      }
+      cam.position.y = EYE_H
+      cam.quaternion.setFromEuler(new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ'))
+      ren.render(sc, cam)
+      lr.render(sc, cam)
     }
-    window.addEventListener('resize', handleResize)
+    anim()
+
+    const onResize = () => {
+      const cw = el.clientWidth, ch = el.clientHeight
+      cam.aspect = cw / ch
+      cam.updateProjectionMatrix()
+      ren.setSize(cw, ch)
+      lr.setSize(cw, ch)
+    }
+    window.addEventListener('resize', onResize)
 
     return () => {
-      cancelAnimationFrame(animFrameRef.current)
-      controls.dispose()
-      renderer.dispose()
-      window.removeEventListener('resize', handleResize)
-      if (renderer.domElement.parentNode) container.removeChild(renderer.domElement)
-      if (labelRenderer.domElement.parentNode) container.removeChild(labelRenderer.domElement)
+      cancelAnimationFrame(animRef.current)
+      ren.dispose()
+      window.removeEventListener('resize', onResize)
+      el.removeChild(ren.domElement)
+      el.removeChild(lr.domElement)
     }
+  }, [])
+
+  useEffect(() => {
+    const onMouse = (e: MouseEvent) => {
+      if (!lockedRef.current) return
+      yawRef.current -= e.movementX * 0.003
+      pitchRef.current -= e.movementY * 0.003
+      pitchRef.current = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, pitchRef.current))
+    }
+    const onLock = () => {
+      lockedRef.current = document.pointerLockElement === rendererRef.current?.domElement
+      if (!lockedRef.current) keysRef.current.clear()
+    }
+    document.addEventListener('mousemove', onMouse)
+    document.addEventListener('pointerlockchange', onLock)
+    return () => { document.removeEventListener('mousemove', onMouse); document.removeEventListener('pointerlockchange', onLock) }
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.type === 'keydown') keysRef.current.add(e.key)
+      else keysRef.current.delete(e.key)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('keyup', onKey)
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey) }
   }, [])
 
   const ekipler = useOfisStore((s) => s.ekipler)
@@ -193,137 +390,81 @@ export function OfficeMap3D() {
     const labelGroup = labelGroupRef.current
     while (group.children.length) group.remove(group.children[0])
     while (labelGroup.children.length) labelGroup.remove(labelGroup.children[0])
+    for (const c of aiCharsRef.current) c.parent?.remove(c)
+    aiCharsRef.current = []
 
     for (const ekip of ekipler) {
       const grp = ekipGruplari.find((g) => g.id === ekip.ekip_grubu_id)
       const color = new THREE.Color(grp?.renk || '#4A90D9')
       const ex = ekip.oda_konum_x + ekip.oda_genislik / 2
       const ez = ekip.oda_konum_y + ekip.oda_yukseklik / 2
-      const ew = ekip.oda_genislik
-      const eh = ekip.oda_yukseklik
 
-      const roomMat = new THREE.MeshStandardMaterial({
-        color, transparent: true, opacity: 0.15,
-        roughness: 0.6, metalness: 0.1, side: THREE.DoubleSide,
-      })
-      const roomGeo = new THREE.BoxGeometry(ew, ROOM_HEIGHT, eh)
-      const roomMesh = new THREE.Mesh(roomGeo, roomMat)
-      roomMesh.position.set(ex, ROOM_HEIGHT / 2, ez)
-      roomMesh.receiveShadow = true
-      group.add(roomMesh)
+      const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.12, roughness: 0.6, metalness: 0.1, side: THREE.DoubleSide })
+      const rm = new THREE.Mesh(new THREE.BoxGeometry(ekip.oda_genislik, ROOM_H, ekip.oda_yukseklik), roomMat)
+      rm.position.set(ex, ROOM_H / 2, ez)
+      rm.receiveShadow = true
+      group.add(rm)
 
-      const edgeMat = new THREE.LineBasicMaterial({ color })
-      const edgeGeo = new THREE.EdgesGeometry(roomGeo)
-      const edgeLine = new THREE.LineSegments(edgeGeo, edgeMat)
-      edgeLine.position.copy(roomMesh.position)
-      group.add(edgeLine)
+      const el = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(ekip.oda_genislik, ROOM_H, ekip.oda_yukseklik)),
+        new THREE.LineBasicMaterial({ color })
+      )
+      el.position.copy(rm.position)
+      group.add(el)
 
-      const div = document.createElement('div')
-      div.style.color = '#e2e8f0'
-      div.style.fontSize = '12px'
-      div.style.fontWeight = 'bold'
-      div.style.textShadow = '0 1px 3px rgba(0,0,0,0.8)'
-      div.style.background = 'rgba(0,0,0,0.6)'
-      div.style.padding = '2px 8px'
-      div.style.borderRadius = '4px'
-      div.style.whiteSpace = 'nowrap'
-      div.textContent = ekip.ad
-      const label = new CSS2DObject(div)
-      label.position.set(ekip.oda_konum_x + 8, ROOM_HEIGHT + 2, ekip.oda_konum_y + 8)
-      labelGroup.add(label)
+      const d = document.createElement('div')
+      d.style.cssText = 'color:#e2e8f0;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.65);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;'
+      d.textContent = ekip.ad
+      const l = new CSS2DObject(d)
+      l.position.set(ekip.oda_konum_x + 8, ROOM_H + 1, ekip.oda_konum_y + 8)
+      labelGroup.add(l)
 
       if (ekip.yonetici_adi || ekip.ai_model_adi) {
-        const subDiv = document.createElement('div')
-        subDiv.style.color = '#94a3b8'
-        subDiv.style.fontSize = '10px'
-        subDiv.style.textShadow = '0 1px 2px rgba(0,0,0,0.8)'
-        subDiv.style.background = 'rgba(0,0,0,0.5)'
-        subDiv.style.padding = '1px 6px'
-        subDiv.style.borderRadius = '3px'
-        subDiv.style.whiteSpace = 'nowrap'
-        const parts: string[] = []
-        if (ekip.yonetici_adi) parts.push(`👤 ${ekip.yonetici_adi}`)
-        if (ekip.ai_model_adi) parts.push(`🤖 ${ekip.ai_model_adi}`)
-        subDiv.textContent = parts.join('  ')
-        const subLabel = new CSS2DObject(subDiv)
-        subLabel.position.set(ekip.oda_konum_x + 8, ROOM_HEIGHT - 4, ekip.oda_konum_y + 8)
-        labelGroup.add(subLabel)
+        const sd = document.createElement('div')
+        const p: string[] = []
+        if (ekip.yonetici_adi) p.push(`👤 ${ekip.yonetici_adi}`)
+        if (ekip.ai_model_adi) p.push(`🤖 ${ekip.ai_model_adi}`)
+        sd.style.cssText = 'color:#94a3b8;font-size:9px;text-shadow:0 1px 3px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;'
+        sd.textContent = p.join('  ')
+        const sl = new CSS2DObject(sd)
+        sl.position.set(ekip.oda_konum_x + 8, ROOM_H - 5, ekip.oda_konum_y + 8)
+        labelGroup.add(sl)
+      }
+
+      mobilyaEkip(group, ekip.oda_konum_x, ekip.oda_konum_y)
+
+      if (ekip.ai_model_id) {
+        const ai = aiKarakter(group, ekip.oda_konum_x + 100, ekip.oda_konum_y + 40, grp?.renk || '#9333ea')
+        aiCharsRef.current.push(ai)
       }
     }
   }, [ekipler, ekipGruplari])
 
   useEffect(() => {
-    const char = characterRef.current
-    if (!char) return
     const unsub = useOfisStore.subscribe((s) => {
       const k = s.kullanici
-      if (k) {
-        char.position.x = k.konum_x
-        char.position.z = k.konum_y
+      if (!k || !cameraRef.current) return
+      if (!lockedRef.current) {
+        cameraRef.current.position.x = k.konum_x
+        cameraRef.current.position.z = k.konum_y
       }
     })
     const k = useOfisStore.getState().kullanici
-    if (k) {
-      char.position.x = k.konum_x
-      char.position.z = k.konum_y
+    if (k && cameraRef.current) {
+      cameraRef.current.position.x = k.konum_x
+      cameraRef.current.position.z = k.konum_y
     }
     return () => unsub()
   }, [])
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      const { kullaniciHareket } = useOfisStore.getState()
-      const step = 12
-      switch (e.key) {
-        case 'ArrowUp': case 'w': case 'W': kullaniciHareket(0, -step); break
-        case 'ArrowDown': case 's': case 'S': kullaniciHareket(0, step); break
-        case 'ArrowLeft': case 'a': case 'A': kullaniciHareket(-step, 0); break
-        case 'ArrowRight': case 'd': case 'D': kullaniciHareket(step, 0); break
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [])
-
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    const renderer = rendererRef.current
-    const camera = cameraRef.current
-    const scene = sceneRef.current
-    const k = useOfisStore.getState().kullanici
-    if (!renderer || !camera || !scene || !k) return
-
-    const rect = renderer.domElement.getBoundingClientRect()
-    const mouse = new THREE.Vector2(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      -((e.clientY - rect.top) / rect.height) * 2 + 1
-    )
-
-    const raycaster = new THREE.Raycaster()
-    raycaster.setFromCamera(mouse, camera)
-
-    const floorMeshes: THREE.Mesh[] = []
-    scene.traverse((obj) => {
-      if ((obj as THREE.Mesh).isMesh && obj.position.y === 0.5) floorMeshes.push(obj as THREE.Mesh)
-    })
-
-    const intersects = raycaster.intersectObjects(floorMeshes)
-    if (intersects.length > 0) {
-      const point = intersects[0].point
-      const dx = point.x - k.konum_x
-      const dz = point.z - k.konum_y
-      useOfisStore.getState().kullaniciHareket(dx, dz)
-    }
+  const onClick = useCallback(() => {
+    rendererRef.current?.domElement.requestPointerLock()
   }, [])
 
   return (
-    <div
-      ref={containerRef}
-      className="flex-1 relative"
-      onClick={handleClick}
-      style={{ width: '100%', height: '100%' }}
-    >
+    <div ref={containerRef} className="flex-1 relative" onClick={onClick} style={{ width: '100%', height: '100%' }}>
       <div className="absolute bottom-4 left-4 bg-gray-900/80 px-3 py-2 rounded text-xs text-gray-400 z-10 pointer-events-none select-none">
-        WASD / Ok tuşları ile hareket · Sol tık ile git · Sağ tık sürükle kamera döndür
+        Tıkla ve fareyi kilitle &middot; WASD ile yürü &middot; Fare ile bak &middot; ESC çıkış &middot; Merdiven sağ arkada
       </div>
     </div>
   )
