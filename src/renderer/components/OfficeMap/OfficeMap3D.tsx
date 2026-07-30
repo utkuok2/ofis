@@ -314,7 +314,7 @@ export function OfficeMap3D() {
       if (lockedRef.current && pressed.size > 0) {
         const yaw = yawRef.current
         const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw))
-        const rgt = new THREE.Vector3(fwd.z, 0, -fwd.x)
+        const rgt = new THREE.Vector3(-fwd.z, 0, fwd.x)
         const spd = 8
         let dx = 0, dz = 0
         if (pressed.has('w') || pressed.has('W') || pressed.has('ArrowUp')) { dx += fwd.x * spd; dz += fwd.z * spd }
