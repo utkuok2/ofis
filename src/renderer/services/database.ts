@@ -2,18 +2,11 @@ import Dexie, { type EntityTable } from 'dexie'
 import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, SohbetMesaji } from '../types'
 
 const AI_MODELS_SEED: { ad: string; model_id: string }[] = [
-  { ad: 'DeepSeek V4 Flash Free', model_id: 'deepseek-v4-flash-free' },
-  { ad: 'MiMo-V2.5 Free', model_id: 'mimo-v2.5-free' },
-  { ad: 'Laguna S 2.1 Free', model_id: 'laguna-s-2.1-free' },
-  { ad: 'Ling-3.0-flash Free', model_id: 'ling-3.0-flash-free' },
-  { ad: 'North Mini Code Free', model_id: 'north-mini-code-free' },
-  { ad: 'Nemotron 3 Ultra Free', model_id: 'nemotron-3-ultra-free' },
-  { ad: 'Big Pickle', model_id: 'big-pickle' },
-  { ad: 'Kimi K2.5 Free', model_id: 'kimi-k2.5-free' },
-  { ad: 'MiniMax M2.5 Free', model_id: 'minimax-m2.5-free' },
-  { ad: 'GPT 5 Nano', model_id: 'gpt-5-nano' },
-  { ad: 'O4 Mini Free', model_id: 'o4-mini-free' },
-  { ad: 'Gemini 2.5 Flash Free', model_id: 'gemini-2.5-flash-free' },
+  { ad: 'Mistral 7B (Free)', model_id: 'mistralai/mistral-7b-instruct:free' },
+  { ad: 'Llama 3.2 3B (Free)', model_id: 'meta-llama/llama-3.2-3b-instruct:free' },
+  { ad: 'Phi-3 Mini (Free)', model_id: 'microsoft/phi-3-mini-128k-instruct:free' },
+  { ad: 'Gemma 2 2B (Free)', model_id: 'google/gemma-2-2b-it:free' },
+  { ad: 'Dolphin Mixtral (Free)', model_id: 'cognitivecomputations/dolphin-mixtral-8x7b:free' },
 ]
 
 class OfisDatabase extends Dexie {
@@ -71,7 +64,7 @@ class OfisDatabase extends Dexie {
       await this.aiModelleri.bulkAdd(
         AI_MODELS_SEED.map((m) => ({
           ...m,
-          api_url: 'https://opencode.ai/zen/v1/chat/completions',
+          api_url: 'https://openrouter.ai/api/v1/chat/completions',
           ucretsiz: true,
           aktif: 1,
         }))

@@ -6,8 +6,8 @@ export async function aiSohbet(
   apiUrl?: string,
   apiKey?: string
 ): Promise<string> {
-  const url = apiUrl || 'https://opencode.ai/zen/v1/chat/completions'
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const url = apiUrl || 'https://openrouter.ai/api/v1/chat/completions'
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'HTTP-Referer': 'https://ofis.utkuok2.dev' }
   if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
   try {
     const response = await fetch(url, {
