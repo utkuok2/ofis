@@ -294,14 +294,6 @@ export function OfficeMap3D() {
     slabBox(COLS * TILE - hr, hb - ht, hr + (COLS * TILE - hr) / 2, ht + (hb - ht) / 2)
     slabBox(COLS * TILE, ROWS * TILE - hb, COLS * TILE / 2, hb + (ROWS * TILE - hb) / 2)
 
-    const ceil = new THREE.Mesh(
-      new THREE.PlaneGeometry(COLS * TILE, ROWS * TILE),
-      new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.9, side: THREE.DoubleSide })
-    )
-    ceil.rotation.x = Math.PI / 2
-    ceil.position.set(COLS * TILE / 2, FLOOR2_Y + WALL_H, ROWS * TILE / 2)
-    sc.add(ceil)
-
     merdiven(sc)
 
     const tx = COLS * TILE / 2, tz = ROWS * TILE / 2, tw = 300, td = 200
