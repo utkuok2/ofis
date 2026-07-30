@@ -15,6 +15,19 @@ export function Header() {
     <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 select-none">
       <div className="flex items-center gap-2">
         <span className="text-lg font-bold">Ofis</span>
+        <button
+          onClick={() => {
+            if (confirm('Veritabanı sıfırlansın mı? Tüm veriler silinecek ve sayfa yenilenecek.')) {
+              localStorage.clear()
+              indexedDB.deleteDatabase('ofis')
+              window.location.reload()
+            }
+          }}
+          className="text-xs text-gray-500 hover:text-red-400 transition-colors cursor-pointer"
+          title="Veritabanını Sıfırla"
+        >
+          ↺
+        </button>
         <span className="text-xs text-gray-400">AI Çalışma Alanı</span>
       </div>
       <div className="flex gap-1">
