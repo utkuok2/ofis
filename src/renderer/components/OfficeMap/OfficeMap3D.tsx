@@ -214,8 +214,8 @@ export function OfficeMap3D() {
     const w = el.clientWidth, h = el.clientHeight
 
     const sc = new THREE.Scene()
-    sc.background = new THREE.Color(0x1a202c)
-    sc.fog = new THREE.Fog(0x1a202c, 900, 1800)
+    sc.background = new THREE.Color(0x87ceeb)
+    sc.fog = new THREE.Fog(0x87ceeb, 1200, 2200)
     sceneRef.current = sc
 
     const cam = new THREE.PerspectiveCamera(72, w / h, 0.5, 2000)
@@ -242,24 +242,21 @@ export function OfficeMap3D() {
     el.appendChild(lr.domElement)
     labelRendererRef.current = lr
 
-    sc.add(new THREE.AmbientLight(0x404070, 0.4))
-    sc.add(new THREE.HemisphereLight(0x87ceeb, 0x362d59, 0.6))
+    sc.add(new THREE.AmbientLight(0x8899bb, 0.7))
+    sc.add(new THREE.HemisphereLight(0x87ceeb, 0x8b6f47, 0.8))
 
-    const dl = new THREE.DirectionalLight(0xffeedd, 1.5)
-    dl.position.set(COLS * TILE / 2, 400, 200)
+    const dl = new THREE.DirectionalLight(0xffeedd, 2.0)
+    dl.position.set(COLS * TILE / 2, 500, 100)
     dl.castShadow = true
-    dl.shadow.mapSize.width = 2048
-    dl.shadow.mapSize.height = 2048
+    dl.shadow.mapSize.width = 4096
+    dl.shadow.mapSize.height = 4096
     dl.shadow.camera.near = 1
-    dl.shadow.camera.far = 800
-    dl.shadow.camera.left = -800
-    dl.shadow.camera.right = 800
-    dl.shadow.camera.top = 800
-    dl.shadow.camera.bottom = -800
+    dl.shadow.camera.far = 1000
+    dl.shadow.camera.left = -1000
+    dl.shadow.camera.right = 1000
+    dl.shadow.camera.top = 1000
+    dl.shadow.camera.bottom = -1000
     sc.add(dl)
-    const fl = new THREE.DirectionalLight(0x8888ff, 0.3)
-    fl.position.set(-300, 200, -400)
-    sc.add(fl)
 
     const woodTex = woodTexture()
     const g = grid()
@@ -291,6 +288,79 @@ export function OfficeMap3D() {
           sc.add(m)
         }
       }
+    }
+
+    const margin = 600
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x6b8e5a, roughness: 0.95 })
+    const ground = new THREE.Mesh(new THREE.BoxGeometry(COLS * TILE + margin * 2, 0.5, ROWS * TILE + margin * 2), groundMat)
+    ground.position.set(COLS * TILE / 2, -0.25, ROWS * TILE / 2)
+    ground.receiveShadow = true
+    sc.add(ground)
+
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.9 })
+    const roadW = 30
+    for (const [cx, cz, rw, rd] of [[COLS * TILE / 2, -roadW / 2, COLS * TILE + margin, roadW],
+    [COLS * TILE / 2, ROWS * TILE + roadW / 2, COLS * TILE + margin, roadW],
+    [-roadW / 2, ROWS * TILE / 2, roadW, ROWS * TILE + margin],
+    [COLS * TILE + roadW / 2, ROWS * TILE / 2, roadW, ROWS * TILE + margin],
+    ] as const) {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(rw, 0.3, rd), roadMat)
+      r.position.set(cx, 0.15, cz)
+      r.receiveShadow = true
+      sc.add(r)
+    }
+
+    function tree(x: number, z: number) {
+      const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.5, 8, 1.5), new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.9 }))
+      trunk.position.set(x, 4, z)
+      trunk.castShadow = true
+      sc.add(trunk)
+      const canopy = new THREE.Mesh(new THREE.SphereGeometry(6, 6, 6), new THREE.MeshStandardMaterial({ color: 0x3a7d3a, roughness: 0.8 }))
+      canopy.position.set(x, 12, z)
+      canopy.castShadow = true
+      sc.add(canopy)
+    }
+    for (let x = -margin + 30; x < COLS * TILE + margin; x += 120) {
+      tree(x, -30)
+      tree(x, ROWS * TILE + 30)
+    }
+    for (let z = 0; z < ROWS * TILE; z += 120) {
+      tree(-30, z)
+      tree(COLS * TILE + 30, z)
+    }
+
+    interface Vehicle { mesh: THREE.Group; path: [number, number][]; speed: number; targetIdx: number; t: number }
+    const vehicles: Vehicle[] = []
+    const carColors = [0xe53e3e, 0x3182ce, 0x38a169, 0xd69e2e, 0x805ad5, 0xdd6b20]
+    function makeCar(color: number) {
+      const g = new THREE.Group()
+      const body = new THREE.Mesh(new THREE.BoxGeometry(8, 2.5, 4), new THREE.MeshStandardMaterial({ color, roughness: 0.4 }))
+      body.position.y = 2
+      body.castShadow = true
+      g.add(body)
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 3.5), new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.3, metalness: 0.2 }))
+      cabin.position.set(0, 3.5, 0)
+      g.add(cabin)
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a202c, roughness: 0.9 })
+      for (const [wx, wz] of [[-3, -2.2], [3, -2.2], [-3, 2.2], [3, 2.2]]) {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.8, 8), wheelMat)
+        w.rotation.x = Math.PI / 2
+        w.position.set(wx, 1, wz)
+        g.add(w)
+      }
+      return g
+    }
+    const paths: [number, number][][] = [
+      [[-100, -100], [COLS * TILE + 100, -100], [COLS * TILE + 100, ROWS * TILE + 100], [-100, ROWS * TILE + 100]],
+      [[200, -100], [COLS * TILE + 100, 200], [COLS * TILE + 100, ROWS * TILE + 100], [200, ROWS * TILE + 100]],
+      [[-100, 300], [COLS * TILE + 100, 300], [COLS * TILE + 100, 600], [-100, 600]],
+    ]
+    for (const path of paths) {
+      const c = makeCar(carColors[vehicles.length % carColors.length])
+      const start = path[0]
+      c.position.set(start[0], 0.5, start[1])
+      sc.add(c)
+      vehicles.push({ mesh: c, path, speed: 20 + Math.random() * 15, targetIdx: 1, t: 0 })
     }
 
     const nSteps = Math.ceil(FLOOR2_Y / 8)
@@ -516,6 +586,19 @@ export function OfficeMap3D() {
             useOfisStore.getState().setSitPrompt('E: Kalk')
           }
         }
+      }
+
+      for (const v of vehicles) {
+        const p = v.path
+        const from = p[v.targetIdx === 0 ? p.length - 1 : v.targetIdx - 1]
+        const to = p[v.targetIdx]
+        v.t += 0.01 * v.speed / Math.sqrt((to[0] - from[0]) ** 2 + (to[1] - from[1]) ** 2)
+        if (v.t >= 1) { v.t = 0; v.targetIdx = (v.targetIdx + 1) % p.length }
+        const x = from[0] + (to[0] - from[0]) * v.t
+        const z = from[1] + (to[1] - from[1]) * v.t
+        v.mesh.position.x = x
+        v.mesh.position.z = z
+        v.mesh.rotation.y = Math.atan2(to[0] - from[0], to[1] - from[1])
       }
 
       cam.quaternion.setFromEuler(new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ'))
