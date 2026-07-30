@@ -203,6 +203,7 @@ export function OfficeMap3D() {
   const chairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
   const meetingChairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
   const collisionBoxesRef = useRef<{ x: number; z: number; w: number; d: number }[]>([])
+  const meetingCollisionRef = useRef<{ x: number; z: number; w: number; d: number }[]>([])
   const sitRequestedRef = useRef(false)
   const sittingRef = useRef(false)
   const prevCamPosRef = useRef<{ x: number; y: number; z: number } | null>(null)
@@ -269,11 +270,20 @@ export function OfficeMap3D() {
         const x = c * TILE + TILE / 2, z = r * TILE + TILE / 2
         const tile = g[r][c]
         if (tile === 'duvar') {
-          const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.85 }))
+          const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({
+            color: 0x5a7a9a, roughness: 0.15, metalness: 0.4,
+            transparent: true, opacity: 0.45, side: THREE.DoubleSide
+          }))
           m.position.set(x, WALL_H / 2, z)
           m.scale.y = WALL_H
           m.castShadow = true; m.receiveShadow = true
           sc.add(m)
+          const frame = new THREE.Mesh(
+            new THREE.BoxGeometry(TILE + 2, 0.5, TILE + 2),
+            new THREE.MeshStandardMaterial({ color: 0x8a9aaa, roughness: 0.3, metalness: 0.5 })
+          )
+          frame.position.set(x, 0.25, z)
+          sc.add(frame)
         } else {
           const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.85, metalness: 0.05 }))
           m.position.set(x, 0.5, z)
@@ -306,7 +316,7 @@ export function OfficeMap3D() {
     merdiven(sc)
 
     const tx = COLS * TILE / 2, tz = ROWS * TILE / 2, tw = 300, td = 200
-    const tMat = new THREE.MeshStandardMaterial({ color: 0x6b7b8d, roughness: 0.8, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
+    const tMat = new THREE.MeshStandardMaterial({ color: 0x7c5cbf, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
     for (const [s, p] of [
       [[tw, WALL_H, 1], [tx, FLOOR2_Y + WALL_H / 2, tz - td / 2]] as const,
       [[tw, WALL_H, 1], [tx, FLOOR2_Y + WALL_H / 2, tz + td / 2]] as const,
@@ -320,11 +330,14 @@ export function OfficeMap3D() {
     }
 
     toplantiMasasi(sc, tx, tz, tw - 80, td - 80, FLOOR2_Y)
-    collisionBoxesRef.current.push({ x: tx, z: tz, w: tw - 78, d: td - 78 })
-    collisionBoxesRef.current.push({ x: tx, z: tz - td / 2, w: tw, d: 1 })
-    collisionBoxesRef.current.push({ x: tx, z: tz + td / 2, w: tw, d: 1 })
-    collisionBoxesRef.current.push({ x: tx - tw / 2, z: tz, w: 1, d: td })
-    collisionBoxesRef.current.push({ x: tx + tw / 2, z: tz, w: 1, d: td })
+    const mc = meetingCollisionRef.current
+    mc.length = 0
+    mc.push({ x: tx, z: tz, w: tw - 70, d: td - 70 })
+    mc.push({ x: tx, z: tz - td / 2, w: tw + 4, d: 6 })
+    mc.push({ x: tx, z: tz + td / 2, w: tw + 4, d: 6 })
+    mc.push({ x: tx - tw / 2, z: tz, w: 6, d: td + 4 })
+    mc.push({ x: tx + tw / 2, z: tz, w: 6, d: td + 4 })
+    collisionBoxesRef.current.push(...mc)
     const chairs2: { x: number; z: number; yBase: number }[] = []
     const tChairPositions: [number, number][] = [
       [tx, tz - td / 2 + 20], [tx, tz + td / 2 - 20],
@@ -335,7 +348,9 @@ export function OfficeMap3D() {
       const angle = Math.atan2(tx - sx, tz - sz)
       sandalye(sc, sx, sz, FLOOR2_Y, angle)
       chairs2.push({ x: sx, z: sz, yBase: FLOOR2_Y })
-      collisionBoxesRef.current.push({ x: sx, z: sz, w: 14, d: 14 })
+      const b = { x: sx, z: sz, w: 14, d: 14 }
+      collisionBoxesRef.current.push(b)
+      mc.push(b)
     }
 
     chairPositionsRef.current.push(...chairs2)
@@ -545,6 +560,7 @@ export function OfficeMap3D() {
     chairPositionsRef.current = [...meetingChairPositionsRef.current]
     const cb = collisionBoxesRef.current
     cb.length = 0
+    cb.push(...meetingCollisionRef.current)
 
     for (const ekip of ekipler) {
       const grp = ekipGruplari.find((g) => g.id === ekip.ekip_grubu_id)
@@ -552,7 +568,7 @@ export function OfficeMap3D() {
       const ex = ekip.oda_konum_x + ekip.oda_genislik / 2
       const ez = ekip.oda_konum_y + ekip.oda_yukseklik / 2
 
-      const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.12, roughness: 0.6, metalness: 0.1, side: THREE.DoubleSide })
+      const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.25, roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide })
       const rm = new THREE.Mesh(new THREE.BoxGeometry(ekip.oda_genislik, ROOM_H, ekip.oda_yukseklik), roomMat)
       rm.position.set(ex, ROOM_H / 2, ez)
       rm.receiveShadow = true
