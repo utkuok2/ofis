@@ -316,25 +316,45 @@ export function OfficeMap3D() {
     merdiven(sc)
 
     const tx = COLS * TILE / 2, tz = ROWS * TILE / 2, tw = 300, td = 200
+    const tWallH = 30
     const tMat = new THREE.MeshStandardMaterial({ color: 0x7c5cbf, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
-    for (const [s, p] of [
-      [[tw, WALL_H, 1], [tx, FLOOR2_Y + WALL_H / 2, tz - td / 2]] as const,
-      [[tw, WALL_H, 1], [tx, FLOOR2_Y + WALL_H / 2, tz + td / 2]] as const,
-      [[1, WALL_H, td], [tx - tw / 2, FLOOR2_Y + WALL_H / 2, tz]] as const,
-      [[1, WALL_H, td], [tx + tw / 2, FLOOR2_Y + WALL_H / 2, tz]] as const,
-    ]) {
+
+    function tWall(s: [number, number, number], p: [number, number, number]) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(s[0], s[1], s[2]), tMat)
       m.position.set(p[0], p[1], p[2])
       m.castShadow = true; m.receiveShadow = true
       sc.add(m)
     }
 
+    tWall([tw, tWallH, 1], [tx, FLOOR2_Y + tWallH / 2, tz - td / 2])
+    const doorW = 18, doorH = 26
+    const halfGap = doorW / 2
+    const leftW = tw / 2 - halfGap
+    const rightW = tw / 2 - halfGap
+    tWall([leftW, tWallH, 1], [tx - halfGap - leftW / 2, FLOOR2_Y + tWallH / 2, tz + td / 2])
+    tWall([rightW, tWallH, 1], [tx + halfGap + rightW / 2, FLOOR2_Y + tWallH / 2, tz + td / 2])
+    tWall([1, tWallH, td], [tx - tw / 2, FLOOR2_Y + tWallH / 2, tz])
+    tWall([1, tWallH, td], [tx + tw / 2, FLOOR2_Y + tWallH / 2, tz])
+
+    const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0xd0d8e8, roughness: 0.2, metalness: 0.6 })
+    function doorPost(x: number) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(1, doorH, 1), doorFrameMat)
+      p.position.set(x, FLOOR2_Y + 4 + doorH / 2, tz + td / 2)
+      sc.add(p)
+    }
+    doorPost(tx - halfGap)
+    doorPost(tx + halfGap)
+    const topBar = new THREE.Mesh(new THREE.BoxGeometry(doorW + 2, 1, 1), doorFrameMat)
+    topBar.position.set(tx, FLOOR2_Y + 4 + doorH, tz + td / 2)
+    sc.add(topBar)
+
     toplantiMasasi(sc, tx, tz, tw - 80, td - 80, FLOOR2_Y)
     const mc = meetingCollisionRef.current
     mc.length = 0
     mc.push({ x: tx, z: tz, w: tw - 70, d: td - 70 })
     mc.push({ x: tx, z: tz - td / 2, w: tw + 4, d: 6 })
-    mc.push({ x: tx, z: tz + td / 2, w: tw + 4, d: 6 })
+    mc.push({ x: tx - halfGap - leftW / 2, z: tz + td / 2, w: leftW, d: 6 })
+    mc.push({ x: tx + halfGap + rightW / 2, z: tz + td / 2, w: rightW, d: 6 })
     mc.push({ x: tx - tw / 2, z: tz, w: 6, d: td + 4 })
     mc.push({ x: tx + tw / 2, z: tz, w: 6, d: td + 4 })
     collisionBoxesRef.current.push(...mc)
@@ -360,7 +380,7 @@ export function OfficeMap3D() {
     tDiv.style.cssText = 'color:#e2e8f0;font-size:14px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
     tDiv.textContent = '🏢 Toplantı Salonu'
     const tLabel = new CSS2DObject(tDiv)
-    tLabel.position.set(tx, FLOOR2_Y + WALL_H + 4, tz - td / 2)
+    tLabel.position.set(tx, FLOOR2_Y + tWallH + 4, tz - td / 2)
     sc.add(tLabel)
     tLabel.visible = false
     kat2LabelRefs.current.push(tLabel)
