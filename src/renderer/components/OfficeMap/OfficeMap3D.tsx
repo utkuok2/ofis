@@ -783,6 +783,13 @@ export function OfficeMap3D() {
   const bildirimGoster = useOfisStore((s) => s.bildirimGoster)
   const sitPrompt = useOfisStore((s) => s.sitPrompt)
   const aiPrompt = useOfisStore((s) => s.aiPrompt)
+  const aktifPanel = useOfisStore((s) => s.aktifPanel)
+
+  useEffect(() => {
+    if (aktifPanel !== 'harita') {
+      document.exitPointerLock()
+    }
+  }, [aktifPanel])
 
   const toplantiCagir = useCallback(() => {
     setAktifPanel('sohbet')

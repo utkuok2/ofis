@@ -22,6 +22,7 @@ interface OfisState {
   sitPrompt: string
   isSitting: boolean
   aiPrompt: string
+  apiKey: string
 
   setKullanici: (k: Kullanici) => void
   setYoneticiler: (list: Yonetici[]) => void
@@ -35,6 +36,7 @@ interface OfisState {
   setSitPrompt: (p: string) => void
   setIsSitting: (b: boolean) => void
   setAiPrompt: (p: string) => void
+  setApiKey: (key: string) => void
   kullaniciHareket: (dx: number, dy: number) => void
   bildirimGoster: (mesaj: string, tur: Bildirim['tur']) => void
   bildirimKaldir: (id: number) => void
@@ -56,6 +58,7 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   sitPrompt: '',
   isSitting: false,
   aiPrompt: '',
+  apiKey: localStorage.getItem('zen_api_key') || '',
 
   setKullanici: (k) => set({ kullanici: k }),
   setYoneticiler: (list) => set({ yoneticiler: list }),
@@ -69,6 +72,7 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   setSitPrompt: (p) => set({ sitPrompt: p }),
   setIsSitting: (b) => set({ isSitting: b }),
   setAiPrompt: (p) => set({ aiPrompt: p }),
+  setApiKey: (key) => { localStorage.setItem('zen_api_key', key); set({ apiKey: key }) },
 
   kullaniciHareket: (dx, dy) => {
     const k = get().kullanici

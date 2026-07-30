@@ -5,10 +5,11 @@ import { sohbetGecmisiYukle, sohbetMesajiKaydet, sohbetGecmisiTemizle, sessionId
 import type { ChatMessage } from '../../types'
 
 export function SohbetPanel() {
-  const { ekipler, aiModelleri, seciliEkipId, setSeciliEkipId } = useOfisStore()
+  const { ekipler, aiModelleri, seciliEkipId, setSeciliEkipId, apiKey, setApiKey } = useOfisStore()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [yukleniyor, setYukleniyor] = useState(false)
+  const [keyInput, setKeyInput] = useState(apiKey)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const seciliEkip = ekipler.find((e) => e.id === seciliEkipId)
@@ -61,7 +62,7 @@ export function SohbetPanel() {
 
     setMessages((prev) => [...prev, userMsg])
 
-    const yanit = await aiSohbet(seciliAI.model_id, allMessages)
+    const yanit = await aiSohbet(seciliAI.model_id, allMessages, seciliAI.api_url, apiKey)
     setMessages((prev) => [...prev, { role: 'assistant', content: yanit }])
     setYukleniyor(false)
 
@@ -71,7 +72,7 @@ export function SohbetPanel() {
       content: yanit,
       tarih: new Date().toISOString(),
     })
-  }, [input, seciliEkip, seciliAI, sessionId, messages])
+  }, [input, seciliEkip, seciliAI, sessionId, messages, apiKey])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -101,6 +102,29 @@ export function SohbetPanel() {
               </option>
             ))}
         </select>
+        <div className="mt-2 flex gap-1">
+          <input
+            className="flex-1 px-2 py-1 bg-gray-700 rounded text-xs"
+            placeholder="🔑 Zen API Key"
+            value={keyInput}
+            onChange={(e) => setKeyInput(e.target.value)}
+            onBlur={() => { if (keyInput !== apiKey) setApiKey(keyInput) }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { setApiKey(keyInput); (e.target as HTMLInputElement).blur() } }}
+          />
+          {keyInput !== apiKey && (
+            <button
+              onClick={() => setApiKey(keyInput)}
+              className="px-2 py-1 bg-blue-600 rounded text-xs"
+            >
+              Kaydet
+            </button>
+          )}
+        </div>
+        {!apiKey && (
+          <div className="text-xs text-yellow-400 mt-1">
+            API key gerekli — <a href="https://opencode.ai/auth" target="_blank" className="underline" rel="noreferrer">opencode.ai/auth</a> adresinden al
+          </div>
+        )}
         {seciliEkip && seciliAI && (
           <div className="text-xs text-gray-400 mt-1 flex items-center justify-between">
             <span>🤖 {seciliAI.ad} ile sohbet ediyorsun</span>

@@ -1,15 +1,18 @@
 import type { ChatMessage } from '../types'
 
-const API_URL = 'https://opencode.ai/zen/v1/chat/completions'
-
 export async function aiSohbet(
   modelId: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  apiUrl?: string,
+  apiKey?: string
 ): Promise<string> {
+  const url = apiUrl || 'https://opencode.ai/zen/v1/chat/completions'
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         model: modelId,
         messages,
