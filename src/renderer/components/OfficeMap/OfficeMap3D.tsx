@@ -254,12 +254,32 @@ export function OfficeMap3D() {
       }
     }
 
+    const nSteps = Math.ceil(FLOOR2_Y / 8)
+    const stairZEnd = ROWS * TILE - 80 - nSteps * 16
+    const stairZStart = ROWS * TILE - 80
+    const slabShape = new THREE.Shape()
+    slabShape.moveTo(0, 0)
+    slabShape.lineTo(COLS * TILE, 0)
+    slabShape.lineTo(COLS * TILE, ROWS * TILE)
+    slabShape.lineTo(0, ROWS * TILE)
+    slabShape.lineTo(0, 0)
+    const stairHole = new THREE.Path()
+    const hl = COLS * TILE - 80 - 38
+    const hr = COLS * TILE - 80 + 38
+    const ht = ROWS * TILE - 80 - nSteps * 16 - 10
+    const hb = ROWS * TILE - 80 + 10
+    stairHole.moveTo(hl, ht)
+    stairHole.lineTo(hr, ht)
+    stairHole.lineTo(hr, hb)
+    stairHole.lineTo(hl, hb)
+    stairHole.lineTo(hl, ht)
+    slabShape.holes.push(stairHole)
     const slab = new THREE.Mesh(
-      new THREE.PlaneGeometry(COLS * TILE, ROWS * TILE),
+      new THREE.ShapeGeometry(slabShape),
       new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.9, side: THREE.DoubleSide })
     )
     slab.rotation.x = -Math.PI / 2
-    slab.position.set(COLS * TILE / 2, FLOOR2_Y, ROWS * TILE / 2)
+    slab.position.set(0, FLOOR2_Y, 0)
     slab.receiveShadow = true
     sc.add(slab)
 
@@ -320,10 +340,6 @@ export function OfficeMap3D() {
 
     sc.add(roomGroupRef.current)
     sc.add(labelGroupRef.current)
-
-    const nSteps = Math.ceil(FLOOR2_Y / 8)
-    const stairZEnd = ROWS * TILE - 80 - nSteps * 16
-    const stairZStart = ROWS * TILE - 80
 
     function anim() {
       animRef.current = requestAnimationFrame(anim)
