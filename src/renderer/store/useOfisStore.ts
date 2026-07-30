@@ -19,6 +19,8 @@ interface OfisState {
   yukleniyor: boolean
   bildirimler: Bildirim[]
   currentFloor: number
+  sitPrompt: string
+  isSitting: boolean
 
   setKullanici: (k: Kullanici) => void
   setYoneticiler: (list: Yonetici[]) => void
@@ -29,6 +31,8 @@ interface OfisState {
   setSeciliEkipId: (id: number | null) => void
   setYukleniyor: (b: boolean) => void
   setCurrentFloor: (f: number) => void
+  setSitPrompt: (p: string) => void
+  setIsSitting: (b: boolean) => void
   kullaniciHareket: (dx: number, dy: number) => void
   bildirimGoster: (mesaj: string, tur: Bildirim['tur']) => void
   bildirimKaldir: (id: number) => void
@@ -47,6 +51,8 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   yukleniyor: false,
   bildirimler: [],
   currentFloor: 1,
+  sitPrompt: '',
+  isSitting: false,
 
   setKullanici: (k) => set({ kullanici: k }),
   setYoneticiler: (list) => set({ yoneticiler: list }),
@@ -57,6 +63,8 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   setSeciliEkipId: (id) => set({ seciliEkipId: id }),
   setYukleniyor: (b) => set({ yukleniyor: b }),
   setCurrentFloor: (f) => set({ currentFloor: f }),
+  setSitPrompt: (p) => set({ sitPrompt: p }),
+  setIsSitting: (b) => set({ isSitting: b }),
 
   kullaniciHareket: (dx, dy) => {
     const k = get().kullanici

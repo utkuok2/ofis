@@ -170,6 +170,9 @@ export function OfficeMap3D() {
   const keysRef = useRef<Set<string>>(new Set())
   const currentFloorRef = useRef(1)
   const kat2LabelRefs = useRef<CSS2DObject[]>([])
+  const chairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
+  const sittingRef = useRef(false)
+  const prevCamPosRef = useRef<{ x: number; y: number; z: number } | null>(null)
 
   useEffect(() => {
     const el = containerRef.current
@@ -285,13 +288,17 @@ export function OfficeMap3D() {
     }
 
     toplantiMasasi(sc, tx, tz, tw - 80, td - 80, FLOOR2_Y)
+    const chairs2: { x: number; z: number; yBase: number }[] = []
     for (const [sx, sz] of [
       [tx, tz - td / 2 + 20], [tx, tz + td / 2 - 20],
       [tx - tw / 2 + 20, tz], [tx + tw / 2 - 20, tz],
       [tx - 40, tz - td / 2 + 20], [tx + 40, tz + td / 2 - 20],
     ]) {
       sandalye(sc, sx, sz, FLOOR2_Y)
+      chairs2.push({ x: sx, z: sz, yBase: FLOOR2_Y })
     }
+
+    chairPositionsRef.current.push(...chairs2)
 
     const tDiv = document.createElement('div')
     tDiv.style.cssText = 'color:#e2e8f0;font-size:14px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
@@ -314,10 +321,16 @@ export function OfficeMap3D() {
     sc.add(roomGroupRef.current)
     sc.add(labelGroupRef.current)
 
+    const nSteps = Math.ceil(FLOOR2_Y / 8)
+    const stairZEnd = ROWS * TILE - 80 - nSteps * 16
+    const stairZStart = ROWS * TILE - 80
+
     function anim() {
       animRef.current = requestAnimationFrame(anim)
       const pressed = keysRef.current
-      if (lockedRef.current && pressed.size > 0) {
+      const sitting = sittingRef.current
+
+      if (lockedRef.current && !sitting && pressed.size > 0) {
         const yaw = yawRef.current
         const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw))
         const rgt = new THREE.Vector3(-fwd.z, 0, fwd.x)
@@ -338,30 +351,48 @@ export function OfficeMap3D() {
         }
       }
 
-      const sx = COLS * TILE - 80
-      const sz = ROWS * TILE - 80
       const px = cam.position.x
       const pz = cam.position.z
-      const dist = Math.sqrt((px - sx) ** 2 + (pz - sz) ** 2)
+      const inStairX = px >= COLS * TILE - 110 && px <= COLS * TILE - 50
 
-      if (currentFloorRef.current === 1 && dist < 35) {
-        currentFloorRef.current = 2
-        cam.position.y = FLOOR2_Y + EYE_H
-        for (const l of kat2LabelRefs.current) l.visible = true
-        labelGroupRef.current.visible = false
-        useOfisStore.getState().setCurrentFloor(2)
-      } else if (currentFloorRef.current === 2 && dist > 60) {
-        currentFloorRef.current = 1
-        cam.position.y = EYE_H
-        for (const l of kat2LabelRefs.current) l.visible = false
-        labelGroupRef.current.visible = true
-        useOfisStore.getState().setCurrentFloor(1)
+      if (inStairX && pz >= stairZEnd && pz <= stairZStart) {
+        let targetY = cam.position.y > FLOOR2_Y + 8 ? FLOOR2_Y + EYE_H : EYE_H
+        for (let i = 0; i < nSteps; i++) {
+          const stepZ = ROWS * TILE - 80 - i * 16
+          if (pz >= stepZ - 8 && pz <= stepZ + 8) {
+            targetY = (i + 0.5) * 8 + EYE_H
+            break
+          }
+        }
+        cam.position.y += (targetY - cam.position.y) * 0.25
+      } else {
+        const floorY = cam.position.y > FLOOR2_Y ? FLOOR2_Y + EYE_H : EYE_H
+        cam.position.y = floorY
       }
 
-      if (currentFloorRef.current === 1) {
-        cam.position.y = EYE_H
-      } else {
-        cam.position.y = FLOOR2_Y + EYE_H
+      const newFloor = cam.position.y >= FLOOR2_Y ? 2 : 1
+      if (newFloor !== currentFloorRef.current) {
+        currentFloorRef.current = newFloor
+        useOfisStore.getState().setCurrentFloor(newFloor)
+        for (const l of kat2LabelRefs.current) l.visible = newFloor === 2
+        labelGroupRef.current.visible = newFloor === 1
+      }
+
+      if (!sitting) {
+        let closest = -1
+        let minDist = 40
+        const chairs = chairPositionsRef.current
+        for (let i = 0; i < chairs.length; i++) {
+          const c = chairs[i]
+          const d = Math.sqrt((px - c.x) ** 2 + (pz - c.z) ** 2)
+          if (d < minDist) { minDist = d; closest = i }
+        }
+        const store = useOfisStore.getState()
+        if (closest >= 0) {
+          store.setSitPrompt('E: Otur')
+        } else {
+          store.setSitPrompt('')
+        }
       }
 
       cam.quaternion.setFromEuler(new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ'))
@@ -406,6 +437,41 @@ export function OfficeMap3D() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.type === 'keydown' && (e.key === 'e' || e.key === 'E')) {
+        const sitting = sittingRef.current
+        const cam = cameraRef.current
+        if (!cam) return
+        if (sitting) {
+          const prev = prevCamPosRef.current
+          if (prev) {
+            cam.position.set(prev.x, prev.y, prev.z)
+          }
+          sittingRef.current = false
+          useOfisStore.getState().setIsSitting(false)
+          useOfisStore.getState().setSitPrompt('')
+        } else {
+          const chairs = chairPositionsRef.current
+          const px = cam.position.x
+          const pz = cam.position.z
+          let closest = -1
+          let minDist = 30
+          for (let i = 0; i < chairs.length; i++) {
+            const c = chairs[i]
+            const d = Math.sqrt((px - c.x) ** 2 + (pz - c.z) ** 2)
+            if (d < minDist) { minDist = d; closest = i }
+          }
+          if (closest >= 0) {
+            prevCamPosRef.current = { x: cam.position.x, y: cam.position.y, z: cam.position.z }
+            const c = chairs[closest]
+            cam.position.set(c.x, c.yBase + 12, c.z)
+            sittingRef.current = true
+            useOfisStore.getState().setIsSitting(true)
+            useOfisStore.getState().setSitPrompt('E: Kalk')
+          }
+        }
+        e.preventDefault()
+        return
+      }
       if (e.type === 'keydown') keysRef.current.add(e.key)
       else keysRef.current.delete(e.key)
     }
@@ -424,6 +490,7 @@ export function OfficeMap3D() {
     while (labelGroup.children.length) labelGroup.remove(labelGroup.children[0])
     for (const c of aiCharsRef.current) c.parent?.remove(c)
     aiCharsRef.current = []
+    chairPositionsRef.current = []
 
     for (const ekip of ekipler) {
       const grp = ekipGruplari.find((g) => g.id === ekip.ekip_grubu_id)
@@ -464,6 +531,10 @@ export function OfficeMap3D() {
       }
 
       mobilyaEkip(group, ekip.oda_konum_x, ekip.oda_konum_y)
+      for (let i = 0; i < 3; i++) {
+        const ox = 30 + i * 50
+        chairPositionsRef.current.push({ x: ekip.oda_konum_x + ox, z: ekip.oda_konum_y + 45, yBase: 0 })
+      }
 
       if (ekip.ai_model_id) {
         const ai = aiKarakter(group, ekip.oda_konum_x + 100, ekip.oda_konum_y + 40, grp?.renk || '#9333ea')
@@ -496,6 +567,7 @@ export function OfficeMap3D() {
   const currentFloorStore = useOfisStore((s) => s.currentFloor)
   const setAktifPanel = useOfisStore((s) => s.setAktifPanel)
   const bildirimGoster = useOfisStore((s) => s.bildirimGoster)
+  const sitPrompt = useOfisStore((s) => s.sitPrompt)
 
   const toplantiCagir = useCallback(() => {
     setAktifPanel('sohbet')
@@ -515,6 +587,11 @@ export function OfficeMap3D() {
           >
             🏢 Toplantıya Katıl
           </button>
+        </div>
+      )}
+      {sitPrompt && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 bg-gray-900/80 px-5 py-2 rounded-full text-sm text-white select-none pointer-events-none">
+          {sitPrompt}
         </div>
       )}
     </div>
