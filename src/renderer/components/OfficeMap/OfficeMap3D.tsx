@@ -126,8 +126,8 @@ function toplantiMasasi(scene: THREE.Scene | THREE.Group, x: number, z: number, 
 function mobilyaEkip(group: THREE.Group, x: number, z: number) {
   for (let i = 0; i < 3; i++) {
     const ox = 30 + i * 50
+    sandalye(group, x + ox, z + 15)
     masa(group, x + ox, z + 30)
-    sandalye(group, x + ox, z + 45)
     bilgisayar(group, x + ox, z + 30)
   }
 }
@@ -556,7 +556,7 @@ export function OfficeMap3D() {
       mobilyaEkip(group, ekip.oda_konum_x, ekip.oda_konum_y)
       for (let i = 0; i < 3; i++) {
         const ox = 30 + i * 50
-        chairPositionsRef.current.push({ x: ekip.oda_konum_x + ox, z: ekip.oda_konum_y + 45, yBase: 0 })
+        chairPositionsRef.current.push({ x: ekip.oda_konum_x + ox, z: ekip.oda_konum_y + 15, yBase: 0 })
       }
 
       if (ekip.ai_model_id) {
