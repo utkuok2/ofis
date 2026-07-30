@@ -199,6 +199,7 @@ export function OfficeMap3D() {
   const currentFloorRef = useRef(1)
   const kat2LabelRefs = useRef<CSS2DObject[]>([])
   const chairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
+  const meetingChairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
   const sittingRef = useRef(false)
   const prevCamPosRef = useRef<{ x: number; y: number; z: number } | null>(null)
 
@@ -328,6 +329,7 @@ export function OfficeMap3D() {
     }
 
     chairPositionsRef.current.push(...chairs2)
+    meetingChairPositionsRef.current = chairs2
 
     const tDiv = document.createElement('div')
     tDiv.style.cssText = 'color:#e2e8f0;font-size:14px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
@@ -519,7 +521,7 @@ export function OfficeMap3D() {
     while (labelGroup.children.length) labelGroup.remove(labelGroup.children[0])
     for (const c of aiCharsRef.current) c.parent?.remove(c)
     aiCharsRef.current = []
-    chairPositionsRef.current = []
+    chairPositionsRef.current = [...meetingChairPositionsRef.current]
 
     for (const ekip of ekipler) {
       const grp = ekipGruplari.find((g) => g.id === ekip.ekip_grubu_id)
