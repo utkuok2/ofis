@@ -64,23 +64,27 @@ function masa(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0)
   }
 }
 
-function sandalye(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0) {
+function sandalye(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0, rot = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, 0, z)
+  g.rotation.y = rot
   const mat = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.6 })
   const seat = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 10), mat)
-  seat.position.set(x, yBase + 5, z)
+  seat.position.set(0, yBase + 5, 0)
   seat.castShadow = true; seat.receiveShadow = true
-  scene.add(seat)
+  g.add(seat)
   const back = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 1.5), mat)
-  back.position.set(x, yBase + 11, z - 5.5)
+  back.position.set(0, yBase + 11, -5.5)
   back.castShadow = true
-  scene.add(back)
+  g.add(back)
   const legMat = new THREE.MeshStandardMaterial({ color: 0x1a202c })
   for (const [dx, dz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
     const l = new THREE.Mesh(new THREE.BoxGeometry(1.5, 5, 1.5), legMat)
-    l.position.set(x + dx, yBase + 2.5, z + dz)
+    l.position.set(dx, yBase + 2.5, dz)
     l.castShadow = true
-    scene.add(l)
+    g.add(l)
   }
+  scene.add(g)
 }
 
 function bilgisayar(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0) {
@@ -312,12 +316,14 @@ export function OfficeMap3D() {
 
     toplantiMasasi(sc, tx, tz, tw - 80, td - 80, FLOOR2_Y)
     const chairs2: { x: number; z: number; yBase: number }[] = []
-    for (const [sx, sz] of [
+    const tChairPositions: [number, number][] = [
       [tx, tz - td / 2 + 20], [tx, tz + td / 2 - 20],
       [tx - tw / 2 + 20, tz], [tx + tw / 2 - 20, tz],
       [tx - 40, tz - td / 2 + 20], [tx + 40, tz + td / 2 - 20],
-    ]) {
-      sandalye(sc, sx, sz, FLOOR2_Y)
+    ]
+    for (const [sx, sz] of tChairPositions) {
+      const angle = Math.atan2(tx - sx, tz - sz)
+      sandalye(sc, sx, sz, FLOOR2_Y, angle)
       chairs2.push({ x: sx, z: sz, yBase: FLOOR2_Y })
     }
 
