@@ -316,8 +316,8 @@ export function OfficeMap3D() {
     merdiven(sc)
 
     const tx = COLS * TILE / 2, tz = ROWS * TILE / 2, tw = 300, td = 200
-    const tWallH = 30
-    const tMat = new THREE.MeshStandardMaterial({ color: 0x7c5cbf, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+    const tWallH = 80
+    const tMat = new THREE.MeshStandardMaterial({ color: 0x8a9acf, roughness: 0.05, metalness: 0.15, transparent: true, opacity: 0.2, side: THREE.DoubleSide })
 
     function tWall(s: [number, number, number], p: [number, number, number]) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(s[0], s[1], s[2]), tMat)
@@ -327,7 +327,7 @@ export function OfficeMap3D() {
     }
 
     tWall([tw, tWallH, 1], [tx, FLOOR2_Y + tWallH / 2, tz - td / 2])
-    const doorW = 18, doorH = 26
+    const doorW = 18, doorH = 40
     const halfGap = doorW / 2
     const leftW = tw / 2 - halfGap
     const rightW = tw / 2 - halfGap
@@ -335,6 +335,12 @@ export function OfficeMap3D() {
     tWall([rightW, tWallH, 1], [tx + halfGap + rightW / 2, FLOOR2_Y + tWallH / 2, tz + td / 2])
     tWall([1, tWallH, td], [tx - tw / 2, FLOOR2_Y + tWallH / 2, tz])
     tWall([1, tWallH, td], [tx + tw / 2, FLOOR2_Y + tWallH / 2, tz])
+
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.8, side: THREE.DoubleSide })
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(tw + 2, 1, td + 2), roofMat)
+    roof.position.set(tx, FLOOR2_Y + tWallH, tz)
+    roof.receiveShadow = true
+    sc.add(roof)
 
     const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0xd0d8e8, roughness: 0.2, metalness: 0.6 })
     function doorPost(x: number) {
