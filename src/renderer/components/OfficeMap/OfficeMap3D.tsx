@@ -8,8 +8,32 @@ const COLS = 30
 const ROWS = 20
 const WALL_H = 20
 const ROOM_H = 16
-const FLOOR2_Y = 40
+const FLOOR2_Y = 56
 const EYE_H = 28
+
+function woodTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas')
+  c.width = 256; c.height = 256
+  const ctx = c.getContext('2d')!
+  ctx.fillStyle = '#d4a574'
+  ctx.fillRect(0, 0, 256, 256)
+  for (let i = 0; i < 80; i++) {
+    const x = Math.random() * 256, y = Math.random() * 256
+    ctx.strokeStyle = `rgba(139,90,43,${Math.random() * 0.25 + 0.05})`
+    ctx.lineWidth = Math.random() * 2 + 0.3
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.bezierCurveTo(x + (Math.random() - 0.5) * 40, y + (Math.random() - 0.5) * 8,
+      x + (Math.random() - 0.5) * 40, y + (Math.random() - 0.5) * 8,
+      x + (Math.random() - 0.5) * 60, y + (Math.random() - 0.5) * 16)
+    ctx.stroke()
+  }
+  const tex = new THREE.CanvasTexture(c)
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(COLS / 2, ROWS / 2)
+  tex.anisotropy = 4
+  return tex
+}
 
 function grid() {
   const g: string[][] = []
@@ -227,6 +251,7 @@ export function OfficeMap3D() {
     fl.position.set(-300, 200, -400)
     sc.add(fl)
 
+    const woodTex = woodTexture()
     const g = grid()
     const tileGeo = new THREE.BoxGeometry(TILE, 1, TILE)
 
@@ -241,15 +266,10 @@ export function OfficeMap3D() {
           m.castShadow = true; m.receiveShadow = true
           sc.add(m)
         } else {
-          const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({ color: tile === 'koridor' ? 0xcbd5e0 : 0xe2e8f0, roughness: 0.95 }))
+          const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.85, metalness: 0.05 }))
           m.position.set(x, 0.5, z)
           m.receiveShadow = true
           sc.add(m)
-          if (tile === 'zemin' && (r + c) % 2 === 0) {
-            const a = new THREE.Mesh(new THREE.BoxGeometry(TILE - 2, 0.1, TILE - 2), new THREE.MeshStandardMaterial({ color: 0xd0d8e0, roughness: 0.95 }))
-            a.position.set(x, 1, z)
-            sc.add(a)
-          }
         }
       }
     }
@@ -257,31 +277,22 @@ export function OfficeMap3D() {
     const nSteps = Math.ceil(FLOOR2_Y / 8)
     const stairZEnd = ROWS * TILE - 80 - nSteps * 16
     const stairZStart = ROWS * TILE - 80
-    const slabShape = new THREE.Shape()
-    slabShape.moveTo(0, 0)
-    slabShape.lineTo(COLS * TILE, 0)
-    slabShape.lineTo(COLS * TILE, ROWS * TILE)
-    slabShape.lineTo(0, ROWS * TILE)
-    slabShape.lineTo(0, 0)
-    const stairHole = new THREE.Path()
+
+    const slabMat = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.9, side: THREE.DoubleSide })
     const hl = COLS * TILE - 80 - 38
     const hr = COLS * TILE - 80 + 38
-    const ht = ROWS * TILE - 80 - nSteps * 16 - 10
     const hb = ROWS * TILE - 80 + 10
-    stairHole.moveTo(hl, ht)
-    stairHole.lineTo(hr, ht)
-    stairHole.lineTo(hr, hb)
-    stairHole.lineTo(hl, hb)
-    stairHole.lineTo(hl, ht)
-    slabShape.holes.push(stairHole)
-    const slab = new THREE.Mesh(
-      new THREE.ShapeGeometry(slabShape),
-      new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.9, side: THREE.DoubleSide })
-    )
-    slab.rotation.x = -Math.PI / 2
-    slab.position.set(0, FLOOR2_Y, 0)
-    slab.receiveShadow = true
-    sc.add(slab)
+    const ht = ROWS * TILE - 80 - nSteps * 16 - 10
+    function slabBox(w: number, d: number, cx: number, cz: number) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, d), slabMat)
+      m.position.set(cx, FLOOR2_Y, cz)
+      m.receiveShadow = true
+      sc.add(m)
+    }
+    slabBox(COLS * TILE, ht, COLS * TILE / 2, ht / 2)
+    slabBox(hl, hb - ht, hl / 2, ht + (hb - ht) / 2)
+    slabBox(COLS * TILE - hr, hb - ht, hr + (COLS * TILE - hr) / 2, ht + (hb - ht) / 2)
+    slabBox(COLS * TILE, ROWS * TILE - hb, COLS * TILE / 2, hb + (ROWS * TILE - hb) / 2)
 
     const ceil = new THREE.Mesh(
       new THREE.PlaneGeometry(COLS * TILE, ROWS * TILE),
@@ -386,7 +397,11 @@ export function OfficeMap3D() {
         cam.position.y = floorY
       }
 
-      const newFloor = cam.position.y >= FLOOR2_Y ? 2 : 1
+      const onStairsNow = inStairX && pz >= stairZEnd - 16 && pz <= stairZStart + 16
+      let newFloor = currentFloorRef.current
+      if (!onStairsNow) {
+        newFloor = cam.position.y > FLOOR2_Y + 8 ? 2 : 1
+      }
       if (newFloor !== currentFloorRef.current) {
         currentFloorRef.current = newFloor
         useOfisStore.getState().setCurrentFloor(newFloor)
