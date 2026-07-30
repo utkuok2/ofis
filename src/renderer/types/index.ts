@@ -37,7 +37,7 @@ export interface AIModel {
   model_id: string
   api_url: string
   ucretsiz: boolean
-  aktif: boolean
+  aktif: number
 }
 
 export interface Kullanici {

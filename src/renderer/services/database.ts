@@ -12,6 +12,8 @@ const AI_MODELS_SEED: { ad: string; model_id: string }[] = [
   { ad: 'Kimi K2.5 Free', model_id: 'kimi-k2.5-free' },
   { ad: 'MiniMax M2.5 Free', model_id: 'minimax-m2.5-free' },
   { ad: 'GPT 5 Nano', model_id: 'gpt-5-nano' },
+  { ad: 'O4 Mini Free', model_id: 'o4-mini-free' },
+  { ad: 'Gemini 2.5 Flash Free', model_id: 'gemini-2.5-flash-free' },
 ]
 
 class OfisDatabase extends Dexie {
@@ -47,6 +49,19 @@ class OfisDatabase extends Dexie {
       kullanici: '++id',
       sohbetMesajlari: '++id, sessionId, tarih',
     })
+    this.version(4).stores({
+      yoneticiler: '++id, ad, soyad',
+      ekipGruplari: '++id, ad',
+      ekipler: '++id, ad, ekip_grubu_id',
+      aiModelleri: '++id, ad, model_id, aktif',
+      kullanici: '++id',
+      sohbetMesajlari: '++id, sessionId, tarih',
+    }).upgrade(async (tx) => {
+      await tx.table('aiModelleri').toCollection().modify((m: any) => {
+        if (m.aktif === true) m.aktif = 1
+        if (m.aktif === false) m.aktif = 0
+      })
+    })
   }
 
   async initialize() {
@@ -58,7 +73,7 @@ class OfisDatabase extends Dexie {
           ...m,
           api_url: 'https://opencode.ai/zen/v1/chat/completions',
           ucretsiz: true,
-          aktif: true,
+          aktif: 1,
         }))
       )
     }
