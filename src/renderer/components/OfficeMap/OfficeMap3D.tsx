@@ -278,7 +278,7 @@ export function OfficeMap3D() {
     const stairZEnd = ROWS * TILE - 80 - nSteps * 16
     const stairZStart = ROWS * TILE - 80
 
-    const slabMat = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.9, side: THREE.DoubleSide })
+    const slabMat = new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.85, metalness: 0.05, side: THREE.DoubleSide })
     const hl = COLS * TILE - 80 - 38
     const hr = COLS * TILE - 80 + 38
     const hb = ROWS * TILE - 80 + 10
@@ -305,7 +305,7 @@ export function OfficeMap3D() {
     merdiven(sc)
 
     const tx = COLS * TILE / 2, tz = ROWS * TILE / 2, tw = 300, td = 200
-    const tMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.8, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+    const tMat = new THREE.MeshStandardMaterial({ color: 0x6b7b8d, roughness: 0.8, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
     for (const [s, p] of [
       [[tw, WALL_H, 1], [tx, FLOOR2_Y + WALL_H / 2, tz - td / 2]] as const,
       [[tw, WALL_H, 1], [tx, FLOOR2_Y + WALL_H / 2, tz + td / 2]] as const,
