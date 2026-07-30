@@ -10,8 +10,9 @@ import {
 type AltSekme = 'ekipler' | 'gruplar' | 'yoneticiler'
 
 export function YonetimPaneli() {
-  const { yoneticiler, ekipGruplari, ekipler, aiModelleri, setYoneticiler, setEkipGruplari, setEkipler } = useOfisStore()
+  const { yoneticiler, ekipGruplari, ekipler, aiModelleri, setYoneticiler, setEkipGruplari, setEkipler, bildirimGoster } = useOfisStore()
   const [altSekme, setAltSekme] = useState<AltSekme>('ekipler')
+  const [islemYapiliyor, setIslemYapiliyor] = useState(false)
 
   const [yeniAd, setYeniAd] = useState('')
   const [yeniSoyad, setYeniSoyad] = useState('')
@@ -27,6 +28,8 @@ export function YonetimPaneli() {
   const [duzenleAd, setDuzenleAd] = useState('')
   const [duzenleYonetici, setDuzenleYonetici] = useState<number>(0)
   const [duzenleAI, setDuzenleAI] = useState<number>(0)
+  const [duzenleX, setDuzenleX] = useState(0)
+  const [duzenleY, setDuzenleY] = useState(0)
 
   const yenile = async () => {
     const data = await veriYukle()
@@ -37,39 +40,59 @@ export function YonetimPaneli() {
 
   const handleYoneticiEkle = async () => {
     if (!yeniAd || !yeniSoyad) return
-    await yoneticiEkle(yeniAd, yeniSoyad, yeniUnvan)
-    setYeniAd(''); setYeniSoyad(''); setYeniUnvan('')
-    await yenile()
+    setIslemYapiliyor(true)
+    try {
+      await yoneticiEkle(yeniAd, yeniSoyad, yeniUnvan)
+      setYeniAd(''); setYeniSoyad(''); setYeniUnvan('')
+      await yenile()
+      bildirimGoster('Yönetici eklendi', 'basarili')
+    } catch { bildirimGoster('Yönetici eklenemedi', 'hata') }
+    setIslemYapiliyor(false)
   }
 
   const handleGrupEkle = async () => {
     if (!yeniGrupAd) return
-    await ekipGrubuEkle(yeniGrupAd, yeniGrupRenk)
-    setYeniGrupAd(''); setYeniGrupRenk('#4A90D9')
-    await yenile()
+    setIslemYapiliyor(true)
+    try {
+      await ekipGrubuEkle(yeniGrupAd, yeniGrupRenk)
+      setYeniGrupAd(''); setYeniGrupRenk('#4A90D9')
+      await yenile()
+      bildirimGoster('Grup eklendi', 'basarili')
+    } catch { bildirimGoster('Grup eklenemedi', 'hata') }
+    setIslemYapiliyor(false)
   }
 
   const handleEkipEkle = async () => {
     if (!yeniEkipAd || yeniEkipGrup === 0) return
-    await ekipEkle(
-      yeniEkipAd,
-      yeniEkipGrup,
-      yeniEkipYonetici || null,
-      yeniEkipAI || null
-    )
-    setYeniEkipAd(''); setYeniEkipGrup(0); setYeniEkipYonetici(0); setYeniEkipAI(0)
-    await yenile()
+    setIslemYapiliyor(true)
+    try {
+      await ekipEkle(yeniEkipAd, yeniEkipGrup, yeniEkipYonetici || null, yeniEkipAI || null)
+      setYeniEkipAd(''); setYeniEkipGrup(0); setYeniEkipYonetici(0); setYeniEkipAI(0)
+      await yenile()
+      bildirimGoster('Ekip oluşturuldu', 'basarili')
+    } catch { bildirimGoster('Ekip oluşturulamadı', 'hata') }
+    setIslemYapiliyor(false)
   }
 
   const handleEkipDuzenle = async (id: number) => {
-    await ekipGuncelle(id, duzenleAd, duzenleYonetici || null, duzenleAI || null)
-    setDuzenlenenEkip(null)
-    await yenile()
+    setIslemYapiliyor(true)
+    try {
+      await ekipGuncelle(id, duzenleAd, duzenleYonetici || null, duzenleAI || null, duzenleX, duzenleY)
+      setDuzenlenenEkip(null)
+      await yenile()
+      bildirimGoster('Ekip güncellendi', 'basarili')
+    } catch { bildirimGoster('Ekip güncellenemedi', 'hata') }
+    setIslemYapiliyor(false)
   }
 
   const handleEkipSil = async (id: number) => {
-    await ekipSil(id)
-    await yenile()
+    setIslemYapiliyor(true)
+    try {
+      await ekipSil(id)
+      await yenile()
+      bildirimGoster('Ekip silindi', 'basarili')
+    } catch { bildirimGoster('Ekip silinemedi', 'hata') }
+    setIslemYapiliyor(false)
   }
 
   return (
@@ -114,7 +137,7 @@ export function YonetimPaneli() {
                 value={yeniUnvan}
                 onChange={(e) => setYeniUnvan(e.target.value)}
               />
-              <button onClick={handleYoneticiEkle} className="px-3 py-1 bg-green-600 rounded text-sm whitespace-nowrap">
+              <button disabled={islemYapiliyor} onClick={handleYoneticiEkle} className="px-3 py-1 bg-green-600 rounded text-sm whitespace-nowrap disabled:opacity-50">
                 Ekle
               </button>
             </div>
@@ -122,7 +145,7 @@ export function YonetimPaneli() {
               {yoneticiler.map((y) => (
                 <div key={y.id} className="flex items-center justify-between px-2 py-1 bg-gray-700 rounded text-sm">
                   <span>{y.ad} {y.soyad} <span className="text-gray-400">({y.unvan})</span></span>
-                  <button onClick={() => yoneticiSil(y.id).then(yenile)} className="text-red-400 hover:text-red-300">Sil</button>
+                  <button disabled={islemYapiliyor} onClick={async () => { try { await yoneticiSil(y.id); await yenile(); bildirimGoster('Yönetici silindi', 'basarili') } catch { bildirimGoster('Silinemedi', 'hata') } }} className="text-red-400 hover:text-red-300 disabled:opacity-50">Sil</button>
                 </div>
               ))}
             </div>
@@ -144,7 +167,7 @@ export function YonetimPaneli() {
                 value={yeniGrupRenk}
                 onChange={(e) => setYeniGrupRenk(e.target.value)}
               />
-              <button onClick={handleGrupEkle} className="px-3 py-1 bg-green-600 rounded text-sm">Ekle</button>
+              <button disabled={islemYapiliyor} onClick={handleGrupEkle} className="px-3 py-1 bg-green-600 rounded text-sm disabled:opacity-50">Ekle</button>
             </div>
             <div className="space-y-1">
               {ekipGruplari.map((g) => (
@@ -153,7 +176,7 @@ export function YonetimPaneli() {
                     <div className="w-3 h-3 rounded" style={{ backgroundColor: g.renk }} />
                     <span>{g.ad}</span>
                   </div>
-                  <button onClick={() => ekipGrubuSil(g.id).then(yenile)} className="text-red-400 hover:text-red-300">Sil</button>
+                  <button disabled={islemYapiliyor} onClick={async () => { try { await ekipGrubuSil(g.id); await yenile(); bildirimGoster('Grup silindi', 'basarili') } catch { bildirimGoster('Silinemedi', 'hata') } }} className="text-red-400 hover:text-red-300 disabled:opacity-50">Sil</button>
                 </div>
               ))}
             </div>
@@ -199,7 +222,7 @@ export function YonetimPaneli() {
                   <option key={ai.id} value={ai.id}>🤖 {ai.ad}</option>
                 ))}
               </select>
-              <button onClick={handleEkipEkle} className="w-full px-3 py-1 bg-green-600 rounded text-sm">Ekip Oluştur</button>
+              <button disabled={islemYapiliyor} onClick={handleEkipEkle} className="w-full px-3 py-1 bg-green-600 rounded text-sm disabled:opacity-50">Ekip Oluştur</button>
             </div>
 
             <div className="space-y-2">
@@ -232,8 +255,12 @@ export function YonetimPaneli() {
                           <option key={ai.id} value={ai.id}>{ai.ad}</option>
                         ))}
                       </select>
+                      <div className="flex gap-2">
+                        <input className="w-16 px-1 py-1 bg-gray-600 rounded text-xs text-center" value={duzenleX} onChange={(e) => setDuzenleX(Number(e.target.value))} title="X konumu" placeholder="X" />
+                        <input className="w-16 px-1 py-1 bg-gray-600 rounded text-xs text-center" value={duzenleY} onChange={(e) => setDuzenleY(Number(e.target.value))} title="Y konumu" placeholder="Y" />
+                      </div>
                       <div className="flex gap-1">
-                        <button onClick={() => handleEkipDuzenle(ekip.id)} className="px-2 py-1 bg-blue-600 rounded text-xs">Kaydet</button>
+                        <button disabled={islemYapiliyor} onClick={() => handleEkipDuzenle(ekip.id)} className="px-2 py-1 bg-blue-600 rounded text-xs disabled:opacity-50">Kaydet</button>
                         <button onClick={() => setDuzenlenenEkip(null)} className="px-2 py-1 bg-gray-600 rounded text-xs">İptal</button>
                       </div>
                     </div>
@@ -248,12 +275,14 @@ export function YonetimPaneli() {
                               setDuzenleAd(ekip.ad)
                               setDuzenleYonetici(ekip.yonetici_id || 0)
                               setDuzenleAI(ekip.ai_model_id || 0)
+                              setDuzenleX(ekip.oda_konum_x)
+                              setDuzenleY(ekip.oda_konum_y)
                             }}
                             className="text-blue-400 text-xs hover:text-blue-300"
                           >
                             Düzenle
                           </button>
-                          <button onClick={() => handleEkipSil(ekip.id)} className="text-red-400 text-xs hover:text-red-300">Sil</button>
+                          <button disabled={islemYapiliyor} onClick={() => handleEkipSil(ekip.id)} className="text-red-400 text-xs hover:text-red-300 disabled:opacity-50">Sil</button>
                         </div>
                       </div>
                       <div className="text-xs text-gray-400 mt-1">

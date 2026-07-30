@@ -48,12 +48,11 @@ export interface Kullanici {
   konum_y: number
 }
 
-export interface Mesaj {
-  id: number
-  ekip_id: number
-  ai_model_id: number
-  mesaj: string
-  yanit: string | null
+export interface SohbetMesaji {
+  id?: number
+  sessionId: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
   tarih: string
 }
 

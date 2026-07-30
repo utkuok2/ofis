@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici } from '../types'
+import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, SohbetMesaji } from '../types'
 
 const AI_MODELS_SEED: { ad: string; model_id: string }[] = [
   { ad: 'DeepSeek V4 Flash Free', model_id: 'deepseek-v4-flash-free' },
@@ -20,6 +20,7 @@ class OfisDatabase extends Dexie {
   ekipler!: EntityTable<Ekip, 'id'>
   aiModelleri!: EntityTable<AIModel, 'id'>
   kullanici!: EntityTable<Kullanici, 'id'>
+  sohbetMesajlari!: EntityTable<SohbetMesaji, 'id'>
 
   constructor() {
     super('ofis')
@@ -29,6 +30,14 @@ class OfisDatabase extends Dexie {
       ekipler: '++id, ad, ekip_grubu_id',
       aiModelleri: '++id, ad, model_id',
       kullanici: '++id',
+    })
+    this.version(2).stores({
+      yoneticiler: '++id, ad, soyad',
+      ekipGruplari: '++id, ad',
+      ekipler: '++id, ad, ekip_grubu_id',
+      aiModelleri: '++id, ad, model_id',
+      kullanici: '++id',
+      sohbetMesajlari: '++id, sessionId, tarih',
     })
   }
 

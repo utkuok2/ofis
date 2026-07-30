@@ -2,6 +2,12 @@ import { create } from 'zustand'
 import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, AktifPanel } from '../types'
 import { kullaniciKonumGuncelle } from '../services/dbService'
 
+export interface Bildirim {
+  mesaj: string
+  tur: 'basarili' | 'hata' | 'bilgi'
+  id: number
+}
+
 interface OfisState {
   kullanici: Kullanici | null
   yoneticiler: Yonetici[]
@@ -11,6 +17,7 @@ interface OfisState {
   aktifPanel: AktifPanel
   seciliEkipId: number | null
   yukleniyor: boolean
+  bildirimler: Bildirim[]
 
   setKullanici: (k: Kullanici) => void
   setYoneticiler: (list: Yonetici[]) => void
@@ -21,7 +28,11 @@ interface OfisState {
   setSeciliEkipId: (id: number | null) => void
   setYukleniyor: (b: boolean) => void
   kullaniciHareket: (dx: number, dy: number) => void
+  bildirimGoster: (mesaj: string, tur: Bildirim['tur']) => void
+  bildirimKaldir: (id: number) => void
 }
+
+let bildirimId = 0
 
 export const useOfisStore = create<OfisState>((set, get) => ({
   kullanici: null,
@@ -32,6 +43,7 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   aktifPanel: 'harita',
   seciliEkipId: null,
   yukleniyor: false,
+  bildirimler: [],
 
   setKullanici: (k) => set({ kullanici: k }),
   setYoneticiler: (list) => set({ yoneticiler: list }),
@@ -49,5 +61,17 @@ export const useOfisStore = create<OfisState>((set, get) => ({
     const newY = Math.max(0, Math.min(700, k.konum_y + dy))
     set({ kullanici: { ...k, konum_x: newX, konum_y: newY } })
     kullaniciKonumGuncelle(k.id, newX, newY)
+  },
+
+  bildirimGoster: (mesaj, tur) => {
+    const id = ++bildirimId
+    set((s) => ({ bildirimler: [...s.bildirimler, { mesaj, tur, id }] }))
+    setTimeout(() => {
+      get().bildirimKaldir(id)
+    }, 3000)
+  },
+
+  bildirimKaldir: (id) => {
+    set((s) => ({ bildirimler: s.bildirimler.filter((b) => b.id !== id) }))
   },
 }))

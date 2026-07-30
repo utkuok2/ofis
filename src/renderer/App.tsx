@@ -6,6 +6,7 @@ import { OfficeMap } from './components/OfficeMap/OfficeMap'
 import { YonetimPaneli } from './components/Management/YonetimPaneli'
 import { SohbetPanel } from './components/Chat/SohbetPanel'
 import { Header } from './components/Layout/Header'
+import { BildirimToast } from './components/Layout/BildirimToast'
 
 export default function App() {
   const { kullanici, aktifPanel, setKullanici, setYoneticiler, setEkipGruplari, setEkipler, setAiModelleri } = useOfisStore()
@@ -38,6 +39,7 @@ export default function App() {
         {aktifPanel === 'yonetim' && <YonetimPaneli />}
         {aktifPanel === 'sohbet' && <SohbetPanel />}
       </div>
+      <BildirimToast />
     </div>
   )
 }

@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useOfisStore } from '../../store/useOfisStore'
 import { aiSohbet, sistemPromptOlustur } from '../../services/aiService'
+import { sohbetGecmisiYukle, sohbetMesajiKaydet, sohbetGecmisiTemizle, sessionIdOlustur } from '../../services/dbService'
 import type { ChatMessage } from '../../types'
 
 export function SohbetPanel() {
@@ -15,17 +16,37 @@ export function SohbetPanel() {
     ? aiModelleri.find((a) => a.id === seciliEkip.ai_model_id)
     : null
 
+  const sessionId = seciliEkip && seciliAI
+    ? sessionIdOlustur(seciliEkip.id, seciliAI.id)
+    : null
+
+  useEffect(() => {
+    if (sessionId) {
+      sohbetGecmisiYukle(sessionId).then((gecmis) => {
+        setMessages(gecmis.map((m) => ({ role: m.role, content: m.content })))
+      })
+    } else {
+      setMessages([])
+    }
+  }, [sessionId])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleGonder = async () => {
-    if (!input.trim() || !seciliEkip || !seciliAI) return
+  const handleGonder = useCallback(async () => {
+    if (!input.trim() || !seciliEkip || !seciliAI || !sessionId) return
 
     const userMsg: ChatMessage = { role: 'user', content: input }
-    setMessages((prev) => [...prev, userMsg])
     setInput('')
     setYukleniyor(true)
+
+    sohbetMesajiKaydet({
+      sessionId,
+      role: 'user',
+      content: input,
+      tarih: new Date().toISOString(),
+    })
 
     const systemPrompt = sistemPromptOlustur(
       seciliEkip.ad,
@@ -38,10 +59,19 @@ export function SohbetPanel() {
       userMsg,
     ]
 
+    setMessages((prev) => [...prev, userMsg])
+
     const yanit = await aiSohbet(seciliAI.model_id, allMessages)
     setMessages((prev) => [...prev, { role: 'assistant', content: yanit }])
     setYukleniyor(false)
-  }
+
+    sohbetMesajiKaydet({
+      sessionId,
+      role: 'assistant',
+      content: yanit,
+      tarih: new Date().toISOString(),
+    })
+  }, [input, seciliEkip, seciliAI, sessionId, messages])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -72,8 +102,19 @@ export function SohbetPanel() {
             ))}
         </select>
         {seciliEkip && seciliAI && (
-          <div className="text-xs text-gray-400 mt-1">
-            🤖 {seciliAI.ad} ile sohbet ediyorsun
+          <div className="text-xs text-gray-400 mt-1 flex items-center justify-between">
+            <span>🤖 {seciliAI.ad} ile sohbet ediyorsun</span>
+            <button
+              onClick={async () => {
+                if (sessionId && confirm('Sohbet geçmişi silinsin mi?')) {
+                  await sohbetGecmisiTemizle(sessionId)
+                  setMessages([])
+                }
+              }}
+              className="text-red-400 hover:text-red-300 text-xs"
+            >
+              Temizle
+            </button>
           </div>
         )}
       </div>

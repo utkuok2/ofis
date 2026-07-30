@@ -140,15 +140,25 @@ export function OfficeMap() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [kullaniciHareket])
 
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    kullaniciHareket(x - (kullanici?.konum_x || 0), y - (kullanici?.konum_y || 0))
+  }, [kullanici, kullaniciHareket])
+
   return (
     <div className="flex-1 overflow-auto bg-gray-800">
       <canvas
         ref={canvasRef}
-        className="mx-auto"
+        className="mx-auto cursor-pointer"
         style={{ minWidth: MAP_COLS * TILE_SIZE, minHeight: MAP_ROWS * TILE_SIZE }}
+        onClick={handleCanvasClick}
       />
       <div className="absolute bottom-4 left-4 bg-gray-900/80 px-3 py-2 rounded text-xs text-gray-400">
-        WASD / Ok tuşları ile hareket et
+        WASD / Ok tuşları / Tıkla ile hareket et
       </div>
     </div>
   )
