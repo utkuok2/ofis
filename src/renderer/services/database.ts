@@ -63,7 +63,8 @@ class OfisDatabase extends Dexie {
 
     if (await this.aiModelleri.count() === 0) {
       await this.aiModelleri.bulkAdd(
-        AI_MODELS_SEED.map((m) => ({
+        AI_MODELS_SEED.map((m, i) => ({
+          id: i + 1,
           ...m,
           api_url: 'https://openrouter.ai/api/v1/chat/completions',
           ucretsiz: true,
@@ -89,9 +90,9 @@ class OfisDatabase extends Dexie {
     if (await this.ekipler.count() === 0) {
       await this.ekipler.bulkAdd([
         { id: 1, ad: 'Frontend Ekibi', ekip_grubu_id: 1, yonetici_id: 1, ai_model_id: 6, oda_konum_x: 60, oda_konum_y: 100, oda_genislik: 180, oda_yukseklik: 100 },
-        { id: 2, ad: 'Backend Ekibi', ekip_grubu_id: 1, yonetici_id: 1, ai_model_id: 1, oda_konum_x: 320, oda_konum_y: 100, oda_genislik: 200, oda_yukseklik: 100 },
-        { id: 3, ad: 'UI/UX Ekibi', ekip_grubu_id: 2, yonetici_id: 2, ai_model_id: 2, oda_konum_x: 60, oda_konum_y: 280, oda_genislik: 180, oda_yukseklik: 100 },
-        { id: 4, ad: 'DevOps Ekibi', ekip_grubu_id: 1, yonetici_id: 1, ai_model_id: 3, oda_konum_x: 320, oda_konum_y: 280, oda_genislik: 200, oda_yukseklik: 100 },
+        { id: 2, ad: 'Backend Ekibi', ekip_grubu_id: 1, yonetici_id: 1, ai_model_id: 6, oda_konum_x: 320, oda_konum_y: 100, oda_genislik: 200, oda_yukseklik: 100 },
+        { id: 3, ad: 'UI/UX Ekibi', ekip_grubu_id: 2, yonetici_id: 2, ai_model_id: 6, oda_konum_x: 60, oda_konum_y: 280, oda_genislik: 180, oda_yukseklik: 100 },
+        { id: 4, ad: 'DevOps Ekibi', ekip_grubu_id: 1, yonetici_id: 1, ai_model_id: 6, oda_konum_x: 320, oda_konum_y: 280, oda_genislik: 200, oda_yukseklik: 100 },
       ])
     }
 
