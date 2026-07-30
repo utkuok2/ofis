@@ -127,14 +127,14 @@ function toplantiMasasi(scene: THREE.Scene | THREE.Group, x: number, z: number, 
   }
 }
 
-function mobilyaEkip(group: THREE.Group, x: number, z: number, cb: { x: number; z: number; w: number; d: number }[]) {
+function mobilyaEkip(group: THREE.Group, x: number, z: number, cb: { x: number; z: number; w: number; d: number; f: number }[]) {
   for (let i = 0; i < 3; i++) {
     const ox = 30 + i * 50
     sandalye(group, x + ox, z + 15)
     masa(group, x + ox, z + 30)
     bilgisayar(group, x + ox, z + 30)
-    cb.push({ x: x + ox, z: z + 30, w: 26, d: 16 })
-    cb.push({ x: x + ox, z: z + 15, w: 14, d: 14 })
+    cb.push({ x: x + ox, z: z + 30, w: 26, d: 16, f: 1 })
+    cb.push({ x: x + ox, z: z + 15, w: 14, d: 14, f: 1 })
   }
 }
 
@@ -202,8 +202,8 @@ export function OfficeMap3D() {
   const kat2LabelRefs = useRef<CSS2DObject[]>([])
   const chairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
   const meetingChairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
-  const collisionBoxesRef = useRef<{ x: number; z: number; w: number; d: number }[]>([])
-  const meetingCollisionRef = useRef<{ x: number; z: number; w: number; d: number }[]>([])
+  const collisionBoxesRef = useRef<{ x: number; z: number; w: number; d: number; f: number }[]>([])
+  const meetingCollisionRef = useRef<{ x: number; z: number; w: number; d: number; f: number }[]>([])
   const sitRequestedRef = useRef(false)
   const sittingRef = useRef(false)
   const prevCamPosRef = useRef<{ x: number; y: number; z: number } | null>(null)
@@ -427,12 +427,12 @@ export function OfficeMap3D() {
     toplantiMasasi(sc, tx, tz, tw - 80, td - 80, FLOOR2_Y)
     const mc = meetingCollisionRef.current
     mc.length = 0
-    mc.push({ x: tx, z: tz, w: tw - 70, d: td - 70 })
-    mc.push({ x: tx, z: tz - td / 2, w: tw + 4, d: 6 })
-    mc.push({ x: tx - halfGap - leftW / 2, z: tz + td / 2, w: leftW, d: 6 })
-    mc.push({ x: tx + halfGap + rightW / 2, z: tz + td / 2, w: rightW, d: 6 })
-    mc.push({ x: tx - tw / 2, z: tz, w: 6, d: td + 4 })
-    mc.push({ x: tx + tw / 2, z: tz, w: 6, d: td + 4 })
+    mc.push({ x: tx, z: tz, w: tw - 70, d: td - 70, f: 2 })
+    mc.push({ x: tx, z: tz - td / 2, w: tw + 4, d: 6, f: 2 })
+    mc.push({ x: tx - halfGap - leftW / 2, z: tz + td / 2, w: leftW, d: 6, f: 2 })
+    mc.push({ x: tx + halfGap + rightW / 2, z: tz + td / 2, w: rightW, d: 6, f: 2 })
+    mc.push({ x: tx - tw / 2, z: tz, w: 6, d: td + 4, f: 2 })
+    mc.push({ x: tx + tw / 2, z: tz, w: 6, d: td + 4, f: 2 })
     collisionBoxesRef.current.push(...mc)
     const chairs2: { x: number; z: number; yBase: number }[] = []
     const tChairPositions: [number, number][] = [
@@ -444,7 +444,7 @@ export function OfficeMap3D() {
       const angle = Math.atan2(tx - sx, tz - sz)
       sandalye(sc, sx, sz, FLOOR2_Y, angle)
       chairs2.push({ x: sx, z: sz, yBase: FLOOR2_Y })
-      const b = { x: sx, z: sz, w: 14, d: 14 }
+      const b = { x: sx, z: sz, w: 14, d: 14, f: 2 }
       collisionBoxesRef.current.push(b)
       mc.push(b)
     }
@@ -473,8 +473,9 @@ export function OfficeMap3D() {
     sc.add(roomGroupRef.current)
     sc.add(labelGroupRef.current)
 
-    function collides(x: number, z: number) {
+    function collides(x: number, z: number, f: number) {
       for (const b of collisionBoxesRef.current) {
+        if (b.f !== 0 && b.f !== f) continue
         if (x >= b.x - b.w / 2 && x <= b.x + b.w / 2 && z >= b.z - b.d / 2 && z <= b.z + b.d / 2) return true
       }
       return false
@@ -500,7 +501,7 @@ export function OfficeMap3D() {
           if (k) {
             let nx = Math.max(0, Math.min(COLS * TILE, k.konum_x + dx))
             let nz = Math.max(0, Math.min(ROWS * TILE, k.konum_y + dz))
-            if (collides(nx, nz)) {
+            if (collides(nx, nz, currentFloorRef.current)) {
               nx = cam.position.x
               nz = cam.position.z
             }
@@ -545,8 +546,11 @@ export function OfficeMap3D() {
         let closest = -1
         let minDist = 40
         const chairs = chairPositionsRef.current
+        const cf = currentFloorRef.current
         for (let i = 0; i < chairs.length; i++) {
           const c = chairs[i]
+          const cFloor = c.yBase >= FLOOR2_Y ? 2 : 1
+          if (cFloor !== cf) continue
           const d = Math.sqrt((px - c.x) ** 2 + (pz - c.z) ** 2)
           if (d < minDist) { minDist = d; closest = i }
         }
@@ -572,8 +576,11 @@ export function OfficeMap3D() {
           const chairs = chairPositionsRef.current
           let closest = -1
           let minDist = 30
+          const cf = currentFloorRef.current
           for (let i = 0; i < chairs.length; i++) {
             const c = chairs[i]
+            const cFloor = c.yBase >= FLOOR2_Y ? 2 : 1
+            if (cFloor !== cf) continue
             const d = Math.sqrt((px - c.x) ** 2 + (pz - c.z) ** 2)
             if (d < minDist) { minDist = d; closest = i }
           }
