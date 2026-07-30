@@ -207,6 +207,8 @@ export function OfficeMap3D() {
   const sitRequestedRef = useRef(false)
   const sittingRef = useRef(false)
   const prevCamPosRef = useRef<{ x: number; y: number; z: number } | null>(null)
+  const aiSpotsRef = useRef<{ x: number; z: number; ekipId: number }[]>([])
+  const nearestAiTeamRef = useRef<number | null>(null)
 
   useEffect(() => {
     const el = containerRef.current
@@ -543,7 +545,7 @@ export function OfficeMap3D() {
       }
 
       if (!sitting) {
-        let closest = -1
+        let closestChair = -1
         let minDist = 40
         const chairs = chairPositionsRef.current
         const cf = currentFloorRef.current
@@ -552,14 +554,28 @@ export function OfficeMap3D() {
           const cFloor = c.yBase >= FLOOR2_Y ? 2 : 1
           if (cFloor !== cf) continue
           const d = Math.sqrt((px - c.x) ** 2 + (pz - c.z) ** 2)
-          if (d < minDist) { minDist = d; closest = i }
+          if (d < minDist) { minDist = d; closestChair = i }
+        }
+        let closestAI = -1
+        let aiMinDist = 50
+        const ais = aiSpotsRef.current
+        for (let i = 0; i < ais.length; i++) {
+          const a = ais[i]
+          const d = Math.sqrt((px - a.x) ** 2 + (pz - a.z) ** 2)
+          if (d < aiMinDist) { aiMinDist = d; closestAI = i }
         }
         const store = useOfisStore.getState()
-        if (closest >= 0) {
+        if (closestAI >= 0) {
+          store.setSitPrompt('')
+          store.setAiPrompt('E: Sohbet Et')
+        } else if (closestChair >= 0) {
+          store.setAiPrompt('')
           store.setSitPrompt('E: Otur')
         } else {
           store.setSitPrompt('')
+          store.setAiPrompt('')
         }
+        nearestAiTeamRef.current = closestAI >= 0 ? ais[closestAI].ekipId : null
       }
 
       if (sitRequestedRef.current) {
@@ -651,6 +667,15 @@ export function OfficeMap3D() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.type === 'keydown' && (e.key === 'e' || e.key === 'E')) {
+        const aiId = nearestAiTeamRef.current
+        if (aiId !== null && !sittingRef.current) {
+          const store = useOfisStore.getState()
+          store.setSeciliEkipId(aiId)
+          store.setAktifPanel('sohbet')
+          store.setAiPrompt('')
+          e.preventDefault()
+          return
+        }
         sitRequestedRef.current = true
         e.preventDefault()
         return
@@ -674,6 +699,7 @@ export function OfficeMap3D() {
     for (const c of aiCharsRef.current) c.parent?.remove(c)
     aiCharsRef.current = []
     chairPositionsRef.current = [...meetingChairPositionsRef.current]
+    aiSpotsRef.current = []
     const cb = collisionBoxesRef.current
     cb.length = 0
     cb.push(...meetingCollisionRef.current)
@@ -723,8 +749,10 @@ export function OfficeMap3D() {
       }
 
       if (ekip.ai_model_id) {
-        const ai = aiKarakter(group, ekip.oda_konum_x + 100, ekip.oda_konum_y + 40, grp?.renk || '#9333ea')
+        const ax = ekip.oda_konum_x + 100, az = ekip.oda_konum_y + 40
+        const ai = aiKarakter(group, ax, az, grp?.renk || '#9333ea')
         aiCharsRef.current.push(ai)
+        aiSpotsRef.current.push({ x: ax, z: az, ekipId: ekip.id })
       }
     }
   }, [ekipler, ekipGruplari])
@@ -754,6 +782,7 @@ export function OfficeMap3D() {
   const setAktifPanel = useOfisStore((s) => s.setAktifPanel)
   const bildirimGoster = useOfisStore((s) => s.bildirimGoster)
   const sitPrompt = useOfisStore((s) => s.sitPrompt)
+  const aiPrompt = useOfisStore((s) => s.aiPrompt)
 
   const toplantiCagir = useCallback(() => {
     setAktifPanel('sohbet')
@@ -775,9 +804,9 @@ export function OfficeMap3D() {
           </button>
         </div>
       )}
-      {sitPrompt && (
+      {(sitPrompt || aiPrompt) && (
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 bg-gray-900/80 px-5 py-2 rounded-full text-sm text-white select-none pointer-events-none">
-          {sitPrompt}
+          {sitPrompt || aiPrompt}
         </div>
       )}
     </div>

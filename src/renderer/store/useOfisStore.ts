@@ -21,6 +21,7 @@ interface OfisState {
   currentFloor: number
   sitPrompt: string
   isSitting: boolean
+  aiPrompt: string
 
   setKullanici: (k: Kullanici) => void
   setYoneticiler: (list: Yonetici[]) => void
@@ -33,6 +34,7 @@ interface OfisState {
   setCurrentFloor: (f: number) => void
   setSitPrompt: (p: string) => void
   setIsSitting: (b: boolean) => void
+  setAiPrompt: (p: string) => void
   kullaniciHareket: (dx: number, dy: number) => void
   bildirimGoster: (mesaj: string, tur: Bildirim['tur']) => void
   bildirimKaldir: (id: number) => void
@@ -53,6 +55,7 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   currentFloor: 1,
   sitPrompt: '',
   isSitting: false,
+  aiPrompt: '',
 
   setKullanici: (k) => set({ kullanici: k }),
   setYoneticiler: (list) => set({ yoneticiler: list }),
@@ -65,6 +68,7 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   setCurrentFloor: (f) => set({ currentFloor: f }),
   setSitPrompt: (p) => set({ sitPrompt: p }),
   setIsSitting: (b) => set({ isSitting: b }),
+  setAiPrompt: (p) => set({ aiPrompt: p }),
 
   kullaniciHareket: (dx, dy) => {
     const k = get().kullanici
