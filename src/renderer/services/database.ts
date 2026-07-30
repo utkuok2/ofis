@@ -39,6 +39,14 @@ class OfisDatabase extends Dexie {
       kullanici: '++id',
       sohbetMesajlari: '++id, sessionId, tarih',
     })
+    this.version(3).stores({
+      yoneticiler: '++id, ad, soyad',
+      ekipGruplari: '++id, ad',
+      ekipler: '++id, ad, ekip_grubu_id',
+      aiModelleri: '++id, ad, model_id, aktif',
+      kullanici: '++id',
+      sohbetMesajlari: '++id, sessionId, tarih',
+    })
   }
 
   async initialize() {
