@@ -168,6 +168,8 @@ export function OfficeMap3D() {
   const pitchRef = useRef(0)
   const lockedRef = useRef(false)
   const keysRef = useRef<Set<string>>(new Set())
+  const currentFloorRef = useRef(1)
+  const kat2LabelRefs = useRef<CSS2DObject[]>([])
 
   useEffect(() => {
     const el = containerRef.current
@@ -293,10 +295,12 @@ export function OfficeMap3D() {
 
     const tDiv = document.createElement('div')
     tDiv.style.cssText = 'color:#e2e8f0;font-size:14px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
-    tDiv.textContent = '🏢 Toplantı Salonu (2. Kat)'
+    tDiv.textContent = '🏢 Toplantı Salonu'
     const tLabel = new CSS2DObject(tDiv)
     tLabel.position.set(tx, FLOOR2_Y + WALL_H + 4, tz - td / 2)
     sc.add(tLabel)
+    tLabel.visible = false
+    kat2LabelRefs.current.push(tLabel)
 
     const katDiv = document.createElement('div')
     katDiv.style.cssText = 'color:#94a3b8;font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,0.8);background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:4px;pointer-events:none;'
@@ -304,6 +308,8 @@ export function OfficeMap3D() {
     const katLabel = new CSS2DObject(katDiv)
     katLabel.position.set(tx, FLOOR2_Y + 2, tz)
     sc.add(katLabel)
+    katLabel.visible = false
+    kat2LabelRefs.current.push(katLabel)
 
     sc.add(roomGroupRef.current)
     sc.add(labelGroupRef.current)
@@ -331,7 +337,33 @@ export function OfficeMap3D() {
           }
         }
       }
-      cam.position.y = EYE_H
+
+      const sx = COLS * TILE - 80
+      const sz = ROWS * TILE - 80
+      const px = cam.position.x
+      const pz = cam.position.z
+      const dist = Math.sqrt((px - sx) ** 2 + (pz - sz) ** 2)
+
+      if (currentFloorRef.current === 1 && dist < 35) {
+        currentFloorRef.current = 2
+        cam.position.y = FLOOR2_Y + EYE_H
+        for (const l of kat2LabelRefs.current) l.visible = true
+        labelGroupRef.current.visible = false
+        useOfisStore.getState().setCurrentFloor(2)
+      } else if (currentFloorRef.current === 2 && dist > 60) {
+        currentFloorRef.current = 1
+        cam.position.y = EYE_H
+        for (const l of kat2LabelRefs.current) l.visible = false
+        labelGroupRef.current.visible = true
+        useOfisStore.getState().setCurrentFloor(1)
+      }
+
+      if (currentFloorRef.current === 1) {
+        cam.position.y = EYE_H
+      } else {
+        cam.position.y = FLOOR2_Y + EYE_H
+      }
+
       cam.quaternion.setFromEuler(new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ'))
       ren.render(sc, cam)
       lr.render(sc, cam)
@@ -461,11 +493,30 @@ export function OfficeMap3D() {
     rendererRef.current?.domElement.requestPointerLock()
   }, [])
 
+  const currentFloorStore = useOfisStore((s) => s.currentFloor)
+  const setAktifPanel = useOfisStore((s) => s.setAktifPanel)
+  const bildirimGoster = useOfisStore((s) => s.bildirimGoster)
+
+  const toplantiCagir = useCallback(() => {
+    setAktifPanel('sohbet')
+    bildirimGoster('Toplantı odasına hoş geldiniz!', 'bilgi')
+  }, [setAktifPanel, bildirimGoster])
+
   return (
     <div ref={containerRef} className="flex-1 relative" onClick={onClick} style={{ width: '100%', height: '100%' }}>
       <div className="absolute bottom-4 left-4 bg-gray-900/80 px-3 py-2 rounded text-xs text-gray-400 z-10 pointer-events-none select-none">
         Tıkla ve fareyi kilitle &middot; WASD ile yürü &middot; Fare ile bak &middot; ESC çıkış &middot; Merdiven sağ arkada
       </div>
+      {currentFloorStore === 2 && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+          <button
+            onClick={(e) => { e.stopPropagation(); toplantiCagir() }}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full shadow-lg text-lg transition-colors cursor-pointer"
+          >
+            🏢 Toplantıya Katıl
+          </button>
+        </div>
+      )}
     </div>
   )
 }
