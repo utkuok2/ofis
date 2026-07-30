@@ -42,6 +42,7 @@ class OfisDatabase extends Dexie {
   }
 
   async initialize() {
+    await this.open()
     const modelCount = await this.aiModelleri.count()
     if (modelCount === 0) {
       await this.aiModelleri.bulkAdd(
