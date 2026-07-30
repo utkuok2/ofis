@@ -127,12 +127,14 @@ function toplantiMasasi(scene: THREE.Scene | THREE.Group, x: number, z: number, 
   }
 }
 
-function mobilyaEkip(group: THREE.Group, x: number, z: number) {
+function mobilyaEkip(group: THREE.Group, x: number, z: number, cb: { x: number; z: number; w: number; d: number }[]) {
   for (let i = 0; i < 3; i++) {
     const ox = 30 + i * 50
     sandalye(group, x + ox, z + 15)
     masa(group, x + ox, z + 30)
     bilgisayar(group, x + ox, z + 30)
+    cb.push({ x: x + ox, z: z + 30, w: 26, d: 16 })
+    cb.push({ x: x + ox, z: z + 15, w: 14, d: 14 })
   }
 }
 
@@ -200,6 +202,8 @@ export function OfficeMap3D() {
   const kat2LabelRefs = useRef<CSS2DObject[]>([])
   const chairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
   const meetingChairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
+  const collisionBoxesRef = useRef<{ x: number; z: number; w: number; d: number }[]>([])
+  const sitRequestedRef = useRef(false)
   const sittingRef = useRef(false)
   const prevCamPosRef = useRef<{ x: number; y: number; z: number } | null>(null)
 
@@ -316,6 +320,11 @@ export function OfficeMap3D() {
     }
 
     toplantiMasasi(sc, tx, tz, tw - 80, td - 80, FLOOR2_Y)
+    collisionBoxesRef.current.push({ x: tx, z: tz, w: tw - 78, d: td - 78 })
+    collisionBoxesRef.current.push({ x: tx, z: tz - td / 2, w: tw, d: 1 })
+    collisionBoxesRef.current.push({ x: tx, z: tz + td / 2, w: tw, d: 1 })
+    collisionBoxesRef.current.push({ x: tx - tw / 2, z: tz, w: 1, d: td })
+    collisionBoxesRef.current.push({ x: tx + tw / 2, z: tz, w: 1, d: td })
     const chairs2: { x: number; z: number; yBase: number }[] = []
     const tChairPositions: [number, number][] = [
       [tx, tz - td / 2 + 20], [tx, tz + td / 2 - 20],
@@ -326,6 +335,7 @@ export function OfficeMap3D() {
       const angle = Math.atan2(tx - sx, tz - sz)
       sandalye(sc, sx, sz, FLOOR2_Y, angle)
       chairs2.push({ x: sx, z: sz, yBase: FLOOR2_Y })
+      collisionBoxesRef.current.push({ x: sx, z: sz, w: 14, d: 14 })
     }
 
     chairPositionsRef.current.push(...chairs2)
@@ -352,6 +362,13 @@ export function OfficeMap3D() {
     sc.add(roomGroupRef.current)
     sc.add(labelGroupRef.current)
 
+    function collides(x: number, z: number) {
+      for (const b of collisionBoxesRef.current) {
+        if (x >= b.x - b.w / 2 && x <= b.x + b.w / 2 && z >= b.z - b.d / 2 && z <= b.z + b.d / 2) return true
+      }
+      return false
+    }
+
     function anim() {
       animRef.current = requestAnimationFrame(anim)
       const pressed = keysRef.current
@@ -370,8 +387,12 @@ export function OfficeMap3D() {
         if (dx !== 0 || dz !== 0) {
           const k = useOfisStore.getState().kullanici
           if (k) {
-            const nx = Math.max(0, Math.min(COLS * TILE, k.konum_x + dx))
-            const nz = Math.max(0, Math.min(ROWS * TILE, k.konum_y + dz))
+            let nx = Math.max(0, Math.min(COLS * TILE, k.konum_x + dx))
+            let nz = Math.max(0, Math.min(ROWS * TILE, k.konum_y + dz))
+            if (collides(nx, nz)) {
+              nx = cam.position.x
+              nz = cam.position.z
+            }
             cam.position.x = nx; cam.position.z = nz
             useOfisStore.getState().kullaniciHareket(nx - k.konum_x, nz - k.konum_y)
           }
@@ -426,6 +447,36 @@ export function OfficeMap3D() {
         }
       }
 
+      if (sitRequestedRef.current) {
+        sitRequestedRef.current = false
+        if (sittingRef.current) {
+          const prev = prevCamPosRef.current
+          if (prev) {
+            cam.position.set(prev.x, prev.y, prev.z)
+          }
+          sittingRef.current = false
+          useOfisStore.getState().setIsSitting(false)
+          useOfisStore.getState().setSitPrompt('')
+        } else {
+          const chairs = chairPositionsRef.current
+          let closest = -1
+          let minDist = 30
+          for (let i = 0; i < chairs.length; i++) {
+            const c = chairs[i]
+            const d = Math.sqrt((px - c.x) ** 2 + (pz - c.z) ** 2)
+            if (d < minDist) { minDist = d; closest = i }
+          }
+          if (closest >= 0) {
+            prevCamPosRef.current = { x: cam.position.x, y: cam.position.y, z: cam.position.z }
+            const c = chairs[closest]
+            cam.position.set(c.x, c.yBase + 12, c.z)
+            sittingRef.current = true
+            useOfisStore.getState().setIsSitting(true)
+            useOfisStore.getState().setSitPrompt('E: Kalk')
+          }
+        }
+      }
+
       cam.quaternion.setFromEuler(new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ'))
       ren.render(sc, cam)
       lr.render(sc, cam)
@@ -469,37 +520,7 @@ export function OfficeMap3D() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.type === 'keydown' && (e.key === 'e' || e.key === 'E')) {
-        const sitting = sittingRef.current
-        const cam = cameraRef.current
-        if (!cam) return
-        if (sitting) {
-          const prev = prevCamPosRef.current
-          if (prev) {
-            cam.position.set(prev.x, prev.y, prev.z)
-          }
-          sittingRef.current = false
-          useOfisStore.getState().setIsSitting(false)
-          useOfisStore.getState().setSitPrompt('')
-        } else {
-          const chairs = chairPositionsRef.current
-          const px = cam.position.x
-          const pz = cam.position.z
-          let closest = -1
-          let minDist = 30
-          for (let i = 0; i < chairs.length; i++) {
-            const c = chairs[i]
-            const d = Math.sqrt((px - c.x) ** 2 + (pz - c.z) ** 2)
-            if (d < minDist) { minDist = d; closest = i }
-          }
-          if (closest >= 0) {
-            prevCamPosRef.current = { x: cam.position.x, y: cam.position.y, z: cam.position.z }
-            const c = chairs[closest]
-            cam.position.set(c.x, c.yBase + 12, c.z)
-            sittingRef.current = true
-            useOfisStore.getState().setIsSitting(true)
-            useOfisStore.getState().setSitPrompt('E: Kalk')
-          }
-        }
+        sitRequestedRef.current = true
         e.preventDefault()
         return
       }
@@ -522,6 +543,8 @@ export function OfficeMap3D() {
     for (const c of aiCharsRef.current) c.parent?.remove(c)
     aiCharsRef.current = []
     chairPositionsRef.current = [...meetingChairPositionsRef.current]
+    const cb = collisionBoxesRef.current
+    cb.length = 0
 
     for (const ekip of ekipler) {
       const grp = ekipGruplari.find((g) => g.id === ekip.ekip_grubu_id)
@@ -561,7 +584,7 @@ export function OfficeMap3D() {
         labelGroup.add(sl)
       }
 
-      mobilyaEkip(group, ekip.oda_konum_x, ekip.oda_konum_y)
+      mobilyaEkip(group, ekip.oda_konum_x, ekip.oda_konum_y, cb)
       for (let i = 0; i < 3; i++) {
         const ox = 30 + i * 50
         chairPositionsRef.current.push({ x: ekip.oda_konum_x + ox, z: ekip.oda_konum_y + 15, yBase: 0 })
