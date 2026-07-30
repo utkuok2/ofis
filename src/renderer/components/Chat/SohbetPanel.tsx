@@ -62,7 +62,7 @@ export function SohbetPanel() {
 
     setMessages((prev) => [...prev, userMsg])
 
-    const yanit = await aiSohbet(seciliAI.model_id, allMessages, seciliAI.api_url, apiKey)
+    const yanit = await aiSohbet(seciliAI.model_id, allMessages, apiKey)
     setMessages((prev) => [...prev, { role: 'assistant', content: yanit }])
     setYukleniyor(false)
 

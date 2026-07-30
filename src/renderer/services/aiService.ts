@@ -1,16 +1,16 @@
 import type { ChatMessage } from '../types'
 
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+
 export async function aiSohbet(
   modelId: string,
   messages: ChatMessage[],
-  apiUrl?: string,
   apiKey?: string
 ): Promise<string> {
-  const url = apiUrl || 'https://openrouter.ai/api/v1/chat/completions'
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'HTTP-Referer': 'https://ofis.utkuok2.dev' }
   if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
   try {
-    const response = await fetch(url, {
+    const response = await fetch(OPENROUTER_URL, {
       method: 'POST',
       headers,
       body: JSON.stringify({
