@@ -222,10 +222,10 @@ export function OfficeMap3D() {
 
     const sc = new THREE.Scene()
     sc.background = new THREE.Color(0x87ceeb)
-    sc.fog = new THREE.Fog(0x87ceeb, 1200, 2200)
+    sc.fog = new THREE.Fog(0x87ceeb, 1500, 2800)
     sceneRef.current = sc
 
-    const cam = new THREE.PerspectiveCamera(72, w / h, 0.5, 2000)
+    const cam = new THREE.PerspectiveCamera(72, w / h, 0.5, 3200)
     const k0 = useOfisStore.getState().kullanici
     cam.position.set(k0?.konum_x || 400, EYE_H, k0?.konum_y || 300)
     cameraRef.current = cam
@@ -297,7 +297,7 @@ export function OfficeMap3D() {
       }
     }
 
-    const margin = 600
+    const margin = 900
     const groundMat = new THREE.MeshStandardMaterial({ color: 0x6b8e5a, roughness: 0.95 })
     const ground = new THREE.Mesh(new THREE.BoxGeometry(COLS * TILE + margin * 2, 0.5, ROWS * TILE + margin * 2), groundMat)
     ground.position.set(COLS * TILE / 2, -0.25, ROWS * TILE / 2)
@@ -318,22 +318,22 @@ export function OfficeMap3D() {
     }
 
     function tree(x: number, z: number) {
-      const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.5, 8, 1.5), new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.9 }))
-      trunk.position.set(x, 4, z)
+      const trunk = new THREE.Mesh(new THREE.BoxGeometry(3.5, 16, 3.5), new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.9 }))
+      trunk.position.set(x, 8, z)
       trunk.castShadow = true
       sc.add(trunk)
-      const canopy = new THREE.Mesh(new THREE.SphereGeometry(6, 6, 6), new THREE.MeshStandardMaterial({ color: 0x3a7d3a, roughness: 0.8 }))
-      canopy.position.set(x, 12, z)
+      const canopy = new THREE.Mesh(new THREE.SphereGeometry(11, 8, 8), new THREE.MeshStandardMaterial({ color: 0x3a7d3a, roughness: 0.8 }))
+      canopy.position.set(x, 22, z)
       canopy.castShadow = true
       sc.add(canopy)
     }
-    for (let x = -margin + 30; x < COLS * TILE + margin; x += 120) {
-      tree(x, -30)
-      tree(x, ROWS * TILE + 30)
+    for (let x = -margin + 30; x < COLS * TILE + margin; x += 150) {
+      tree(x, -40)
+      tree(x, ROWS * TILE + 40)
     }
-    for (let z = 0; z < ROWS * TILE; z += 120) {
-      tree(-30, z)
-      tree(COLS * TILE + 30, z)
+    for (let z = 0; z < ROWS * TILE; z += 150) {
+      tree(-40, z)
+      tree(COLS * TILE + 40, z)
     }
 
     interface Vehicle { mesh: THREE.Group; path: [number, number][]; speed: number; targetIdx: number; t: number }
@@ -341,26 +341,26 @@ export function OfficeMap3D() {
     const carColors = [0xe53e3e, 0x3182ce, 0x38a169, 0xd69e2e, 0x805ad5, 0xdd6b20]
     function makeCar(color: number) {
       const g = new THREE.Group()
-      const body = new THREE.Mesh(new THREE.BoxGeometry(8, 2.5, 4), new THREE.MeshStandardMaterial({ color, roughness: 0.4 }))
-      body.position.y = 2
+      const body = new THREE.Mesh(new THREE.BoxGeometry(15, 4.5, 6.5), new THREE.MeshStandardMaterial({ color, roughness: 0.4 }))
+      body.position.y = 3.75
       body.castShadow = true
       g.add(body)
-      const cabin = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 3.5), new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.3, metalness: 0.2 }))
-      cabin.position.set(0, 3.5, 0)
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(7.5, 3.2, 5.5), new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.3, metalness: 0.2 }))
+      cabin.position.set(0, 6.2, 0)
       g.add(cabin)
       const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a202c, roughness: 0.9 })
-      for (const [wx, wz] of [[-3, -2.2], [3, -2.2], [-3, 2.2], [3, 2.2]]) {
-        const w = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.8, 8), wheelMat)
+      for (const [wx, wz] of [[-5, -2.6], [5, -2.6], [-5, 2.6], [5, 2.6]]) {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 1.2, 10), wheelMat)
         w.rotation.x = Math.PI / 2
-        w.position.set(wx, 1, wz)
+        w.position.set(wx, 1.5, wz)
         g.add(w)
       }
       return g
     }
     const paths: [number, number][][] = [
-      [[-100, -100], [COLS * TILE + 100, -100], [COLS * TILE + 100, ROWS * TILE + 100], [-100, ROWS * TILE + 100]],
-      [[200, -100], [COLS * TILE + 100, 200], [COLS * TILE + 100, ROWS * TILE + 100], [200, ROWS * TILE + 100]],
-      [[-100, 300], [COLS * TILE + 100, 300], [COLS * TILE + 100, 600], [-100, 600]],
+      [[-15, -15], [COLS * TILE + 15, -15], [COLS * TILE + 15, ROWS * TILE + 15], [-15, ROWS * TILE + 15]],
+      [[COLS * TILE + 15, 100], [COLS * TILE + 15, ROWS * TILE + 15], [-15, ROWS * TILE + 15], [-15, 100]],
+      [[-15, ROWS * TILE + 15], [COLS * TILE + 15, ROWS * TILE + 15], [COLS * TILE + 15, 100], [-15, 100]],
     ]
     for (const path of paths) {
       const c = makeCar(carColors[vehicles.length % carColors.length])
