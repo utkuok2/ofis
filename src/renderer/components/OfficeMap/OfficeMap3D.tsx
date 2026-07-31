@@ -1064,16 +1064,20 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
           const d = Math.sqrt((px - c.x) ** 2 + (pz - c.z) ** 2)
           if (d < minDist) { minDist = d; closestChair = i }
         }
-        let closestAI = -1
+        let yakinAI: { ekipId: number; yonetici: boolean } | null = null
         let aiMinDist = 50
-        const ais = aiSpotsRef.current
-        for (let i = 0; i < ais.length; i++) {
-          const a = ais[i]
-          if ((a.kat || 1) !== cf) continue
-          const d = Math.sqrt((px - a.x) ** 2 + (pz - a.z) ** 2)
-          if (d < aiMinDist) { aiMinDist = d; closestAI = i }
+        const kisiler: { k: AiKayit | null; ekipId: number; yonetici: boolean }[] = []
+        for (const [ekipId, kayit] of aiHaritaRef.current) {
+          kisiler.push({ k: kayit.uye, ekipId, yonetici: false })
+          kisiler.push({ k: kayit.yonetici, ekipId, yonetici: true })
         }
-        const yonetici = closestAI >= 0 && ais[closestAI].yonetici === true
+        for (const { k, ekipId, yonetici: y } of kisiler) {
+          if (!k) continue
+          if ((k.grup.position.y >= FLOOR2_Y - 1 ? 2 : 1) !== cf) continue
+          const d = Math.sqrt((px - k.grup.position.x) ** 2 + (pz - k.grup.position.z) ** 2)
+          if (d < aiMinDist) { aiMinDist = d; yakinAI = { ekipId, yonetici: y } }
+        }
+        const yonetici = yakinAI?.yonetici === true
         const store = useOfisStore.getState()
         const tk = tahtaKonumRef.current
         tahtaYakinRef.current = tk !== null && cf === 2 && Math.sqrt((px - tk.x) ** 2 + (pz - tk.z) ** 2) < 70
@@ -1085,10 +1089,10 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
         } else if (projeTerminalYakinRef.current) {
           store.setSitPrompt('')
           store.setAiPrompt('E: Projeler')
-        } else if (closestAI >= 0 && yonetici) {
+        } else if (yakinAI && yonetici) {
           store.setSitPrompt('')
           store.setAiPrompt('E: Yönetici ile Görüş')
-        } else if (closestAI >= 0) {
+        } else if (yakinAI) {
           store.setSitPrompt('')
           store.setAiPrompt('E: Sohbet Et')
         } else if (closestChair >= 0) {
@@ -1098,8 +1102,8 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
           store.setSitPrompt('')
           store.setAiPrompt('')
         }
-        nearestAiTeamRef.current = !tahtaYakinRef.current && !projeTerminalYakinRef.current && closestAI >= 0 && !yonetici ? ais[closestAI].ekipId : null
-        nearestYoneticiTeamRef.current = !tahtaYakinRef.current && !projeTerminalYakinRef.current && closestAI >= 0 && yonetici ? ais[closestAI].ekipId : null
+        nearestAiTeamRef.current = !tahtaYakinRef.current && !projeTerminalYakinRef.current && yakinAI && !yakinAI.yonetici ? yakinAI.ekipId : null
+        nearestYoneticiTeamRef.current = !tahtaYakinRef.current && !projeTerminalYakinRef.current && yakinAI && yakinAI.yonetici ? yakinAI.ekipId : null
       }
 
       if (sitRequestedRef.current) {
