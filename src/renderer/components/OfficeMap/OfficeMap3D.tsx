@@ -691,6 +691,9 @@ export function OfficeMap3D() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
+      if (useOfisStore.getState().aktifPanel !== 'harita') return
       if (e.type === 'keydown' && (e.key === 'e' || e.key === 'E')) {
         const aiId = nearestAiTeamRef.current
         if (aiId !== null && !sittingRef.current) {
