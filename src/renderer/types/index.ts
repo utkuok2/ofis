@@ -92,6 +92,7 @@ export type PeerMesajTipi =
   | 'ofis_verisi'
   | 'sohbet_mesaji'
   | 'ekip_guncelle'
+  | 'tahta_guncelle'
 
 export interface PeerMesaj {
   type: PeerMesajTipi

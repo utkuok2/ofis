@@ -1,11 +1,12 @@
-import React, { useRef, useEffect, useCallback } from 'react'
+import React, { useRef, useEffect, useCallback, useState } from 'react'
 import * as THREE from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
 import { useOfisStore } from '../../store/useOfisStore'
 import { uzakKarakterOlustur } from './RemotePlayer'
 import { herkeseGonder } from '../../services/peerService'
+import { tahtaGuncelleGonder } from '../../services/multiplayerService'
 
-const TILE = 40
+const TILE = 45
 const COLS = 30
 const ROWS = 20
 const WALL_H = 20
@@ -273,6 +274,90 @@ function resepsiyon(scene: THREE.Scene | THREE.Group, x: number, z: number, yBas
   scene.add(g)
 }
 
+function suSebili(scene: THREE.Scene | THREE.Group, x: number, z: number, rot = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, 0, z)
+  g.rotation.y = rot
+  const body = new THREE.Mesh(new THREE.BoxGeometry(8, 12, 8), new THREE.MeshStandardMaterial({ color: 0x9aa5b1, roughness: 0.5, metalness: 0.4 }))
+  body.position.set(0, 6, 0)
+  body.castShadow = true
+  g.add(body)
+  const bottle = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 9, 10), new THREE.MeshStandardMaterial({ color: 0x90cdf4, roughness: 0.2, transparent: true, opacity: 0.8 }))
+  bottle.position.set(0, 18, 0)
+  g.add(bottle)
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.7, 0.8, 10), new THREE.MeshStandardMaterial({ color: 0x2b6cb0 }))
+  cap.position.set(0, 22.9, 0)
+  g.add(cap)
+  const tap = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 2), new THREE.MeshStandardMaterial({ color: 0x718096, metalness: 0.6 }))
+  tap.position.set(0, 8.5, 4.5)
+  g.add(tap)
+  const tray = new THREE.Mesh(new THREE.BoxGeometry(7, 1, 5), new THREE.MeshStandardMaterial({ color: 0x4a5568 }))
+  tray.position.set(0, 1.2, 3.5)
+  g.add(tray)
+  scene.add(g)
+}
+
+function copKovasi(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0, rot = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, yBase, z)
+  g.rotation.y = rot
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 7, 10), new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.7 }))
+  body.position.set(0, 3.5, 0)
+  body.castShadow = true
+  g.add(body)
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 0.7, 10), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.6 }))
+  lid.position.set(0, 7.2, 0)
+  g.add(lid)
+  const band = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.8, 6.2), new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.6 }))
+  band.position.set(0, 5, 0)
+  g.add(band)
+  scene.add(g)
+}
+
+function kahveKosesi(scene: THREE.Scene | THREE.Group, x: number, z: number, rot = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, 0, z)
+  g.rotation.y = rot
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(40, 8, 12), new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }))
+  counter.position.set(0, 4, 0)
+  counter.castShadow = true; counter.receiveShadow = true
+  g.add(counter)
+  const top = new THREE.Mesh(new THREE.BoxGeometry(42, 1.2, 14), new THREE.MeshStandardMaterial({ color: 0xa0522d, roughness: 0.7 }))
+  top.position.set(0, 8.6, 0)
+  g.add(top)
+  const machine = new THREE.Mesh(new THREE.BoxGeometry(10, 11, 7), new THREE.MeshStandardMaterial({ color: 0x718096, roughness: 0.4, metalness: 0.5 }))
+  machine.position.set(-8, 13.5, 0)
+  machine.castShadow = true
+  g.add(machine)
+  const machineFace = new THREE.Mesh(new THREE.BoxGeometry(8, 7, 0.6), new THREE.MeshStandardMaterial({ color: 0x1a202c, roughness: 0.3 }))
+  machineFace.position.set(-8, 12.5, 3.7)
+  g.add(machineFace)
+  const drip = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.5, 2.5), new THREE.MeshStandardMaterial({ color: 0x4a5568 }))
+  drip.position.set(-8, 9.5, 3.2)
+  g.add(drip)
+  const cupMat = new THREE.MeshStandardMaterial({ color: 0xf7fafc, roughness: 0.3 })
+  for (const dx of [8, 13]) {
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1, 3.5, 10), cupMat)
+    cup.position.set(dx, 10.4, 0)
+    cup.castShadow = true
+    g.add(cup)
+  }
+  scene.add(g)
+}
+
+function duvarCerceve(scene: THREE.Scene | THREE.Group, x: number, z: number, y: number, rot = 0, renk = 0x8e44ad) {
+  const g = new THREE.Group()
+  g.position.set(x, y, z)
+  g.rotation.y = rot
+  const outer = new THREE.Mesh(new THREE.BoxGeometry(18, 12, 0.6), new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.7 }))
+  outer.castShadow = true
+  g.add(outer)
+  const inner = new THREE.Mesh(new THREE.BoxGeometry(13, 8, 0.3), new THREE.MeshStandardMaterial({ color: renk, roughness: 0.8 }))
+  inner.position.set(0, 0, 0.4)
+  g.add(inner)
+  scene.add(g)
+}
+
 function toplantiMasasi(scene: THREE.Scene | THREE.Group, x: number, z: number, w = 60, d = 30, yBase = 0) {
   const mat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.7, metalness: 0.1 })
   const top = new THREE.Mesh(new THREE.BoxGeometry(w, 2, d), mat)
@@ -368,8 +453,16 @@ export function OfficeMap3D() {
   const sitRequestedRef = useRef(false)
   const sittingRef = useRef(false)
   const prevCamPosRef = useRef<{ x: number; y: number; z: number } | null>(null)
-  const aiSpotsRef = useRef<{ x: number; z: number; ekipId: number }[]>([])
+  const aiSpotsRef = useRef<{ x: number; z: number; ekipId: number; kat: number; yonetici?: boolean }[]>([])
   const nearestAiTeamRef = useRef<number | null>(null)
+  const nearestYoneticiTeamRef = useRef<number | null>(null)
+  const tahtaTexRef = useRef<{ tex: THREE.CanvasTexture; canvas: HTMLCanvasElement } | null>(null)
+  const tahtaKonumRef = useRef<{ x: number; z: number } | null>(null)
+  const tahtaYakinRef = useRef(false)
+  const tahtaAktifRef = useRef(false)
+  const tahtaCizimRef = useRef({ ciziyor: false, sonX: 0, sonY: 0, renk: '#111111', boyut: 3 })
+  const tahtaCizimCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [tahtaAktif, setTahtaAktif] = useState(false)
   const uzakKarakterlerRef = useRef<Map<string, { group: THREE.Group; label: CSS2DObject }>>(new Map())
   const uzakHedefRef = useRef<Map<string, { x: number; z: number; f: number }>>(new Map())
   const sonKonumGonderimRef = useRef(0)
@@ -447,6 +540,12 @@ export function OfficeMap3D() {
           )
           frame.position.set(x, 0.25, z)
           sc.add(frame)
+          const cap = new THREE.Mesh(
+            new THREE.BoxGeometry(TILE + 4, 1, TILE + 4),
+            new THREE.MeshStandardMaterial({ color: 0x8a9aaa, roughness: 0.3, metalness: 0.5 })
+          )
+          cap.position.set(x, WALL_H + 0.5, z)
+          sc.add(cap)
         } else {
           const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.85, metalness: 0.05 }))
           m.position.set(x, 0.5, z)
@@ -544,6 +643,13 @@ export function OfficeMap3D() {
     }
     bank(sc, 10 * TILE + TILE / 2, TILE * 1.5 + 4)
     bank(sc, 20 * TILE + TILE / 2, TILE * 1.5 + 4)
+    suSebili(sc, 10 * TILE - 10, TILE * 1.5 + 14)
+    suSebili(sc, 20 * TILE - 10, TILE * 1.5 + 14)
+    kahveKosesi(sc, 130, TILE * 1.5 - 8)
+    copKovasi(sc, 172, TILE * 1.5 - 4)
+    for (const cx2 of [180, 380, 580, 780, 980, 1180]) {
+      duvarCerceve(sc, cx2, TILE + 2, 11)
+    }
 
     for (let x = 60; x < COLS * TILE - 40; x += 130) {
       cali(x, -8)
@@ -573,16 +679,19 @@ export function OfficeMap3D() {
       sc.add(fl)
     }
 
-    resepsiyon(sc, 600, 690)
-    bilgisayar(sc, 612, 690, 2.5)
-    bitki(sc, 540, 700, 1.4)
-    bank(sc, 665, 705, Math.PI)
+    resepsiyon(sc, 600, ROWS * TILE - 110)
+    bilgisayar(sc, 612, ROWS * TILE - 110, 2.5)
+    bitki(sc, 540, ROWS * TILE - 95, 1.4)
+    bank(sc, 665, ROWS * TILE - 90, Math.PI)
+    sandalye(sc, 625, ROWS * TILE - 68)
+    sandalye(sc, 658, ROWS * TILE - 68)
+    copKovasi(sc, 642, ROWS * TILE - 100)
 
     const girDiv = document.createElement('div')
     girDiv.style.cssText = 'color:#e2e8f0;font-size:13px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
     girDiv.textContent = '🚪 Giriş / Resepsiyon'
     const girLabel = new CSS2DObject(girDiv)
-    girLabel.position.set(600, 12, 650)
+    girLabel.position.set(600, 12, ROWS * TILE - 145)
     sc.add(girLabel)
 
     const nSteps = Math.ceil(FLOOR2_Y / 8)
@@ -677,7 +786,46 @@ export function OfficeMap3D() {
     hali(sc, tx, tz, tw - 30, td - 30, 0x7f1d1d, FLOOR2_Y)
     kitaplik(sc, tx + 90, tz - td / 2 + 8, FLOOR2_Y, Math.PI)
     kitaplik(sc, tx - 90, tz - td / 2 + 8, FLOOR2_Y, Math.PI)
-    yazTahtasi(sc, tx, tz - td / 2 + 4, FLOOR2_Y + 2)
+
+    const tahtaCanvas = document.createElement('canvas')
+    tahtaCanvas.width = 640
+    tahtaCanvas.height = 320
+    const tctx = tahtaCanvas.getContext('2d')!
+    tctx.fillStyle = '#ffffff'
+    tctx.fillRect(0, 0, 640, 320)
+    const tahtaTex = new THREE.CanvasTexture(tahtaCanvas)
+    tahtaTex.colorSpace = THREE.SRGBColorSpace
+    const tBoard = new THREE.Mesh(
+      new THREE.BoxGeometry(52, 28, 0.8),
+      new THREE.MeshStandardMaterial({ map: tahtaTex, roughness: 0.4 })
+    )
+    tBoard.position.set(tx, FLOOR2_Y + 16, tz - td / 2 + 5)
+    tBoard.castShadow = true
+    sc.add(tBoard)
+    const tbFrameMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4 })
+    for (const [dx, dy, dw, dh] of [[-26, 16, 1, 28], [26, 16, 1, 28], [0, 2, 53, 1], [0, 30, 53, 1]]) {
+      const f = new THREE.Mesh(new THREE.BoxGeometry(dw, dh, 0.9), tbFrameMat)
+      f.position.set(tx + dx, FLOOR2_Y + dy, tz - td / 2 + 5)
+      sc.add(f)
+    }
+    const tTray = new THREE.Mesh(new THREE.BoxGeometry(52, 1.2, 2.5), tbFrameMat)
+    tTray.position.set(tx, FLOOR2_Y + 2, tz - td / 2 + 7)
+    sc.add(tTray)
+    for (const [mx, mc] of [[-20, 0xe53e3e], [20, 0x3182ce]] as const) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 4), new THREE.MeshStandardMaterial({ color: mc }))
+      m.position.set(tx + mx, FLOOR2_Y + 3.4, tz - td / 2 + 8)
+      sc.add(m)
+    }
+    tahtaTexRef.current = { tex: tahtaTex, canvas: tahtaCanvas }
+    tahtaKonumRef.current = { x: tx, z: tz - td / 2 }
+
+    const tahtaDiv = document.createElement('div')
+    tahtaDiv.style.cssText = 'color:#e2e8f0;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.65);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;'
+    tahtaDiv.textContent = '✏️ Yazı Tahtası — yaklaş ve E'
+    const tahtaLabel = new CSS2DObject(tahtaDiv)
+    tahtaLabel.position.set(tx, FLOOR2_Y + 36, tz - td / 2 + 8)
+    sc.add(tahtaLabel)
+    kat2LabelRefs.current.push(tahtaLabel)
     bitki(sc, tx - tw / 2 + 20, tz + td / 2 - 20, 1.2, FLOOR2_Y)
     bitki(sc, tx + tw / 2 - 20, tz + td / 2 - 20, 1.2, FLOOR2_Y)
     tavanLambasi(sc, tx - 60, tz, FLOOR2_Y + tWallH - 2)
@@ -793,11 +941,21 @@ export function OfficeMap3D() {
         const ais = aiSpotsRef.current
         for (let i = 0; i < ais.length; i++) {
           const a = ais[i]
+          if ((a.kat || 1) !== cf) continue
           const d = Math.sqrt((px - a.x) ** 2 + (pz - a.z) ** 2)
           if (d < aiMinDist) { aiMinDist = d; closestAI = i }
         }
+        const yonetici = closestAI >= 0 && ais[closestAI].yonetici === true
         const store = useOfisStore.getState()
-        if (closestAI >= 0) {
+        const tk = tahtaKonumRef.current
+        tahtaYakinRef.current = tk !== null && cf === 2 && Math.sqrt((px - tk.x) ** 2 + (pz - tk.z) ** 2) < 70
+        if (tahtaYakinRef.current) {
+          store.setSitPrompt('')
+          store.setAiPrompt('E: Tahtaya Yaz')
+        } else if (closestAI >= 0 && yonetici) {
+          store.setSitPrompt('')
+          store.setAiPrompt('E: Yönetici ile Görüş')
+        } else if (closestAI >= 0) {
           store.setSitPrompt('')
           store.setAiPrompt('E: Sohbet Et')
         } else if (closestChair >= 0) {
@@ -807,7 +965,8 @@ export function OfficeMap3D() {
           store.setSitPrompt('')
           store.setAiPrompt('')
         }
-        nearestAiTeamRef.current = closestAI >= 0 ? ais[closestAI].ekipId : null
+        nearestAiTeamRef.current = !tahtaYakinRef.current && closestAI >= 0 && !yonetici ? ais[closestAI].ekipId : null
+        nearestYoneticiTeamRef.current = !tahtaYakinRef.current && closestAI >= 0 && yonetici ? ais[closestAI].ekipId : null
       }
 
       if (sitRequestedRef.current) {
@@ -916,16 +1075,56 @@ export function OfficeMap3D() {
     return () => { document.removeEventListener('mousemove', onMouse); document.removeEventListener('pointerlockchange', onLock) }
   }, [])
 
+  function tahtaAc() {
+    document.exitPointerLock()
+    tahtaAktifRef.current = true
+    setTahtaAktif(true)
+  }
+
+  function tahtaKapat() {
+    const kaynak = tahtaTexRef.current
+    const cv = tahtaCizimCanvasRef.current
+    if (kaynak && cv) {
+      const ctx = kaynak.canvas.getContext('2d')!
+      ctx.clearRect(0, 0, kaynak.canvas.width, kaynak.canvas.height)
+      ctx.drawImage(cv, 0, 0)
+      kaynak.tex.needsUpdate = true
+      tahtaGuncelleGonder(cv.toDataURL())
+    }
+    tahtaAktifRef.current = false
+    setTahtaAktif(false)
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
+      if (tahtaAktifRef.current) {
+        if (e.type === 'keydown' && e.key === 'Escape') tahtaKapat()
+        return
+      }
       if (useOfisStore.getState().aktifPanel !== 'harita') return
       if (e.type === 'keydown' && (e.key === 'e' || e.key === 'E')) {
+        if (tahtaYakinRef.current && !sittingRef.current) {
+          tahtaAc()
+          e.preventDefault()
+          return
+        }
+        const yonId = nearestYoneticiTeamRef.current
+        if (yonId !== null && !sittingRef.current) {
+          const store = useOfisStore.getState()
+          store.setSeciliEkipId(yonId)
+          store.setSohbetModu('yonetici')
+          store.setAktifPanel('sohbet')
+          store.setAiPrompt('')
+          e.preventDefault()
+          return
+        }
         const aiId = nearestAiTeamRef.current
         if (aiId !== null && !sittingRef.current) {
           const store = useOfisStore.getState()
           store.setSeciliEkipId(aiId)
+          store.setSohbetModu('ekip')
           store.setAktifPanel('sohbet')
           store.setAiPrompt('')
           e.preventDefault()
@@ -942,6 +1141,32 @@ export function OfficeMap3D() {
     window.addEventListener('keyup', onKey)
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey) }
   }, [])
+
+  useEffect(() => {
+    if (!tahtaAktif) return
+    const kaynak = tahtaTexRef.current
+    const cv = tahtaCizimCanvasRef.current
+    if (kaynak && cv) {
+      const ctx = cv.getContext('2d')!
+      ctx.clearRect(0, 0, cv.width, cv.height)
+      ctx.drawImage(kaynak.canvas, 0, 0)
+    }
+  }, [tahtaAktif])
+
+  const tahtaDataUrl = useOfisStore((s) => s.tahtaDataUrl)
+  useEffect(() => {
+    if (!tahtaDataUrl) return
+    const kaynak = tahtaTexRef.current
+    if (!kaynak) return
+    const img = new Image()
+    img.onload = () => {
+      const ctx = kaynak.canvas.getContext('2d')!
+      ctx.clearRect(0, 0, kaynak.canvas.width, kaynak.canvas.height)
+      ctx.drawImage(img, 0, 0)
+      kaynak.tex.needsUpdate = true
+    }
+    img.src = tahtaDataUrl
+  }, [tahtaDataUrl])
 
   const ekipler = useOfisStore((s) => s.ekipler)
   const ekipGruplari = useOfisStore((s) => s.ekipGruplari)
@@ -1003,6 +1228,7 @@ export function OfficeMap3D() {
       dosyaDolabi(group, ekip.oda_konum_x + ekip.oda_genislik - 36, ekip.oda_konum_y + ekip.oda_yukseklik - 8, 0, Math.PI)
       yazTahtasi(group, ekip.oda_konum_x + ekip.oda_genislik - 30, ekip.oda_konum_y + 5)
       bitki(group, ekip.oda_konum_x + 12, ekip.oda_konum_y + ekip.oda_yukseklik - 12)
+      copKovasi(group, ekip.oda_konum_x + ekip.oda_genislik - 14, ekip.oda_konum_y + 32)
       for (let i = 0; i < 3; i++) {
         const ox = 30 + i * 50
         chairPositionsRef.current.push({ x: ekip.oda_konum_x + ox, z: ekip.oda_konum_y + 15, yBase: 0 })
@@ -1012,8 +1238,70 @@ export function OfficeMap3D() {
         const ax = ekip.oda_konum_x + 100, az = ekip.oda_konum_y + 40
         const ai = aiKarakter(group, ax, az, grp?.renk || '#9333ea')
         aiCharsRef.current.push(ai)
-        aiSpotsRef.current.push({ x: ax, z: az, ekipId: ekip.id })
+        aiSpotsRef.current.push({ x: ax, z: az, ekipId: ekip.id, kat: 1 })
       }
+    }
+
+    let mIdx = 0
+    const ofisW = 170, ofisD = 140
+    for (const ekip of ekipler) {
+      if (!ekip.yonetici_adi) continue
+      const row = mIdx < 5 ? 0 : 1
+      const col = mIdx < 5 ? mIdx : mIdx - 5
+      mIdx++
+      if (row === 1 && col > 1) break
+      const grp = ekipGruplari.find((g) => g.id === ekip.ekip_grubu_id)
+      const color = new THREE.Color(grp?.renk || '#B7791F')
+      const ox = 90 + col * 200
+      const oz = row === 0 ? 80 : 230
+      const cx = ox + ofisW / 2
+      const cz = oz + ofisD / 2
+
+      const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.25, roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide })
+      const rm = new THREE.Mesh(new THREE.BoxGeometry(ofisW, ROOM_H, ofisD), roomMat)
+      rm.position.set(cx, FLOOR2_Y + ROOM_H / 2, cz)
+      rm.receiveShadow = true
+      group.add(rm)
+      const el = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(ofisW, ROOM_H, ofisD)),
+        new THREE.LineBasicMaterial({ color })
+      )
+      el.position.copy(rm.position)
+      group.add(el)
+
+      const d = document.createElement('div')
+      d.style.cssText = 'color:#e2e8f0;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.65);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;'
+      d.textContent = `👔 ${ekip.yonetici_adi}`
+      const l = new CSS2DObject(d)
+      l.position.set(ox + 8, FLOOR2_Y + ROOM_H + 2, oz + 8)
+      group.add(l)
+      kat2LabelRefs.current.push(l)
+
+      const sd = document.createElement('div')
+      sd.style.cssText = 'color:#94a3b8;font-size:9px;text-shadow:0 1px 3px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;'
+      sd.textContent = `${ekip.ad} Yöneticisi`
+      const sl = new CSS2DObject(sd)
+      sl.position.set(ox + 8, FLOOR2_Y + ROOM_H - 5, oz + 8)
+      group.add(sl)
+      kat2LabelRefs.current.push(sl)
+
+      hali(group, cx, oz + 55, ofisW - 30, 95, 0x4a3a8c, FLOOR2_Y)
+      masa(group, ox + 45, oz + 60, FLOOR2_Y)
+      sandalye(group, ox + 45, oz + 40, FLOOR2_Y)
+      bilgisayar(group, ox + 45, oz + 60, FLOOR2_Y)
+      sandalye(group, ox + 115, oz + 65, FLOOR2_Y, Math.PI)
+      kitaplik(group, ox + 152, oz + ofisD - 8, FLOOR2_Y, Math.PI)
+      bitki(group, ox + 16, oz + ofisD - 16, 1.2, FLOOR2_Y)
+
+      chairPositionsRef.current.push({ x: ox + 45, z: oz + 40, yBase: FLOOR2_Y })
+      chairPositionsRef.current.push({ x: ox + 115, z: oz + 65, yBase: FLOOR2_Y })
+      cb.push({ x: ox + 45, z: oz + 60, w: 26, d: 16, f: 2 })
+      cb.push({ x: ox + 45, z: oz + 40, w: 14, d: 14, f: 2 })
+      cb.push({ x: ox + 115, z: oz + 65, w: 14, d: 14, f: 2 })
+
+      const ai = aiKarakter(group, ox + 100, oz + 95, '#' + color.getHexString())
+      aiCharsRef.current.push(ai)
+      aiSpotsRef.current.push({ x: ox + 100, z: oz + 95, ekipId: ekip.id, kat: 2, yonetici: true })
     }
   }, [ekipler, ekipGruplari])
 
@@ -1099,6 +1387,108 @@ export function OfficeMap3D() {
       {(sitPrompt || aiPrompt) && (
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 bg-gray-900/80 px-5 py-2 rounded-full text-sm text-white select-none pointer-events-none">
           {sitPrompt || aiPrompt}
+        </div>
+      )}
+      {tahtaAktif && (
+        <div
+          className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="bg-gray-900 rounded-xl p-4 shadow-2xl select-none" style={{ width: 720 }}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-white font-bold text-lg">✏️ Yazı Tahtası</span>
+              <span className="text-gray-500 text-xs">ESC veya Kapat ile kaydet ve paylaş</span>
+            </div>
+            <div className="bg-white rounded-lg p-2 mb-3">
+              <canvas
+                ref={tahtaCizimCanvasRef}
+                width={640}
+                height={320}
+                className="block cursor-crosshair w-full touch-none rounded"
+                style={{ aspectRatio: '2 / 1' }}
+                onPointerDown={(e) => {
+                  const cv = tahtaCizimCanvasRef.current
+                  if (!cv) return
+                  const rect = cv.getBoundingClientRect()
+                  const x = (e.clientX - rect.left) * (cv.width / rect.width)
+                  const y = (e.clientY - rect.top) * (cv.height / rect.height)
+                  const c = tahtaCizimRef.current
+                  c.ciziyor = true
+                  c.sonX = x
+                  c.sonY = y
+                  const ctx = cv.getContext('2d')!
+                  ctx.strokeStyle = c.renk
+                  ctx.lineWidth = c.boyut
+                  ctx.lineCap = 'round'
+                  ctx.beginPath()
+                  ctx.moveTo(x, y)
+                  ctx.lineTo(x + 0.1, y + 0.1)
+                  ctx.stroke()
+                  ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+                }}
+                onPointerMove={(e) => {
+                  const cv = tahtaCizimCanvasRef.current
+                  const c = tahtaCizimRef.current
+                  if (!cv || !c.ciziyor) return
+                  const rect = cv.getBoundingClientRect()
+                  const x = (e.clientX - rect.left) * (cv.width / rect.width)
+                  const y = (e.clientY - rect.top) * (cv.height / rect.height)
+                  const ctx = cv.getContext('2d')!
+                  ctx.strokeStyle = c.renk
+                  ctx.lineWidth = c.boyut
+                  ctx.lineTo(x, y)
+                  ctx.stroke()
+                  c.sonX = x
+                  c.sonY = y
+                }}
+                onPointerUp={() => { tahtaCizimRef.current.ciziyor = false }}
+                onPointerCancel={() => { tahtaCizimRef.current.ciziyor = false }}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                {([
+                  ['Siyah', '#111111', 3],
+                  ['Kırmızı', '#e53e3e', 4],
+                  ['Mavi', '#3182ce', 4],
+                  ['Silgi', '#ffffff', 14],
+                ] as [string, string, number][]).map(([ad, renk, boyut]) => (
+                  <button
+                    key={ad}
+                    onClick={() => {
+                      tahtaCizimRef.current.renk = renk
+                      tahtaCizimRef.current.boyut = boyut
+                    }}
+                    className="bg-gray-700 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded-lg transition-colors cursor-pointer"
+                  >
+                    {ad}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const cv = tahtaCizimCanvasRef.current
+                    if (cv) {
+                      const ctx = cv.getContext('2d')!
+                      ctx.fillStyle = '#ffffff'
+                      ctx.fillRect(0, 0, cv.width, cv.height)
+                    }
+                  }}
+                  className="bg-gray-700 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded-lg transition-colors cursor-pointer"
+                >
+                  🧹 Temizle
+                </button>
+                <button
+                  onClick={tahtaKapat}
+                  className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors cursor-pointer"
+                >
+                  ✔ Kapat ve Paylaş
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

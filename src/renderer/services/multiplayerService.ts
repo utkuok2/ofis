@@ -115,6 +115,15 @@ function mesajIsle(conn: any, mesaj: PeerMesaj) {
       }
       break
     }
+    case 'tahta_guncelle': {
+      store.setTahtaDataUrl(p.dataUrl)
+      if (store.multiplayerMod === 'evsahibi') {
+        for (const c of tumBaglantilar()) {
+          if (c.peer !== conn.peer) mesajGonder(c, mesaj)
+        }
+      }
+      break
+    }
   }
 }
 
@@ -182,6 +191,11 @@ export function takimMesajiGonder(mesaj: string) {
   }
   store.takimMesajiEkle(m)
   herkeseGonder({ type: 'sohbet_mesaji', payload: m })
+}
+
+export function tahtaGuncelleGonder(dataUrl: string) {
+  if (useOfisStore.getState().multiplayerMod === 'tek') return
+  herkeseGonder({ type: 'tahta_guncelle', payload: { dataUrl } })
 }
 
 export async function ofisVerisiniTumBaglantilaraGonder() {

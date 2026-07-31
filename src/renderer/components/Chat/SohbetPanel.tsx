@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useOfisStore } from '../../store/useOfisStore'
-import { aiSohbet, sistemPromptOlustur } from '../../services/aiService'
+import { aiSohbet, sistemPromptOlustur, yoneticiSistemPromptOlustur } from '../../services/aiService'
 import { sohbetGecmisiYukle, sohbetMesajiKaydet, sohbetGecmisiTemizle, sessionIdOlustur, apiKeyKaydet } from '../../services/dbService'
 import { takimMesajiGonder } from '../../services/multiplayerService'
 import type { ChatMessage } from '../../types'
@@ -8,7 +8,7 @@ import type { ChatMessage } from '../../types'
 type Sekme = 'ai' | 'takim'
 
 export function SohbetPanel() {
-  const { ekipler, aiModelleri, seciliEkipId, setSeciliEkipId, apiKey, setApiKey, multiplayerMod, takimMesajlari, kullaniciAdi, githubAvatar } = useOfisStore()
+  const { ekipler, aiModelleri, seciliEkipId, setSeciliEkipId, apiKey, setApiKey, multiplayerMod, takimMesajlari, kullaniciAdi, githubAvatar, sohbetModu, setSohbetModu } = useOfisStore()
   const [sekme, setSekme] = useState<Sekme>('ai')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -24,7 +24,7 @@ export function SohbetPanel() {
     : null
 
   const sessionId = seciliEkip && seciliAI
-    ? sessionIdOlustur(seciliEkip.id, seciliAI.id)
+    ? sessionIdOlustur(seciliEkip.id, seciliAI.id) + (sohbetModu === 'yonetici' ? '-yonetici' : '')
     : null
 
   const keyKaydet = useCallback(async (key: string) => {
@@ -50,24 +50,24 @@ export function SohbetPanel() {
     takimEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [takimMesajlari])
 
-  const handleGonder = useCallback(async () => {
-    if (!input.trim() || !seciliEkip || !seciliAI || !sessionId) return
+  const handleGonder = useCallback(async (metin?: string) => {
+    const gonderilecek = (metin ?? input).trim()
+    if (!gonderilecek || !seciliEkip || !seciliAI || !sessionId) return
 
-    const userMsg: ChatMessage = { role: 'user', content: input }
+    const userMsg: ChatMessage = { role: 'user', content: gonderilecek }
     setInput('')
     setYukleniyor(true)
 
     sohbetMesajiKaydet({
       sessionId,
       role: 'user',
-      content: input,
+      content: gonderilecek,
       tarih: new Date().toISOString(),
     })
 
-    const systemPrompt = sistemPromptOlustur(
-      seciliEkip.ad,
-      seciliEkip.yonetici_adi || 'Yönetici'
-    )
+    const systemPrompt = sohbetModu === 'yonetici'
+      ? yoneticiSistemPromptOlustur(seciliEkip.ad, seciliEkip.yonetici_adi || 'Yönetici')
+      : sistemPromptOlustur(seciliEkip.ad, seciliEkip.yonetici_adi || 'Yönetici')
 
     const allMessages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -87,7 +87,7 @@ export function SohbetPanel() {
       content: yanit,
       tarih: new Date().toISOString(),
     })
-  }, [input, seciliEkip, seciliAI, sessionId, messages, apiKey])
+  }, [input, seciliEkip, seciliAI, sessionId, messages, apiKey, sohbetModu])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -130,6 +130,7 @@ export function SohbetPanel() {
               value={seciliEkipId || ''}
               onChange={(e) => {
                 setSeciliEkipId(e.target.value ? Number(e.target.value) : null)
+                setSohbetModu('ekip')
                 setMessages([])
               }}
             >
@@ -167,7 +168,11 @@ export function SohbetPanel() {
             )}
             {seciliEkip && seciliAI && (
               <div className="text-xs text-gray-400 mt-1 flex items-center justify-between">
-                <span>🤖 {seciliAI.ad} ile sohbet ediyorsun</span>
+                <span>
+                  {sohbetModu === 'yonetici'
+                    ? `👔 ${seciliEkip.yonetici_adi || 'Yönetici'} (${seciliEkip.ad} Yöneticisi) ile görüşüyorsun`
+                    : `🤖 ${seciliAI.ad} ile sohbet ediyorsun`}
+                </span>
                 <button
                   onClick={async () => {
                     if (sessionId && confirm('Sohbet geçmişi silinsin mi?')) {
@@ -180,6 +185,15 @@ export function SohbetPanel() {
                   Temizle
                 </button>
               </div>
+            )}
+            {seciliEkip && sohbetModu === 'yonetici' && (
+              <button
+                onClick={() => handleGonder('Bana ekibinin şu anki durum raporunu ver: ekip arkadaşların şu anda ne yapıyor, hangi görevlerle ilgileniyor, hangi işlerde ilerleme var?')}
+                disabled={yukleniyor}
+                className="mt-2 w-full px-2 py-1.5 bg-purple-600 hover:bg-purple-700 rounded text-xs font-bold text-white disabled:opacity-50"
+              >
+                📋 Ekip Raporu İste
+              </button>
             )}
           </div>
 
@@ -227,7 +241,7 @@ export function SohbetPanel() {
                   onKeyDown={handleKeyDown}
                 />
                 <button
-                  onClick={handleGonder}
+                  onClick={() => handleGonder()}
                   disabled={yukleniyor || !input.trim()}
                   className="px-4 py-2 bg-blue-600 rounded text-sm disabled:opacity-50 self-end"
                 >
