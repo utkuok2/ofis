@@ -1194,18 +1194,11 @@ export function OfficeMap3D() {
       const ex = ekip.oda_konum_x + ekip.oda_genislik / 2
       const ez = ekip.oda_konum_y + ekip.oda_yukseklik / 2
 
-      const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.25, roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide })
+      const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.12, roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide })
       const rm = new THREE.Mesh(new THREE.BoxGeometry(ekip.oda_genislik, ROOM_H, ekip.oda_yukseklik), roomMat)
       rm.position.set(ex, ROOM_H / 2, ez)
       rm.receiveShadow = true
       group.add(rm)
-
-      const el = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.BoxGeometry(ekip.oda_genislik, ROOM_H, ekip.oda_yukseklik)),
-        new THREE.LineBasicMaterial({ color })
-      )
-      el.position.copy(rm.position)
-      group.add(el)
 
       const d = document.createElement('div')
       d.style.cssText = 'color:#e2e8f0;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.65);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;'
@@ -1261,17 +1254,11 @@ export function OfficeMap3D() {
       const cx = ox + ofisW / 2
       const cz = oz + ofisD / 2
 
-      const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.25, roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide })
+      const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.12, roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide })
       const rm = new THREE.Mesh(new THREE.BoxGeometry(ofisW, ROOM_H, ofisD), roomMat)
       rm.position.set(cx, FLOOR2_Y + ROOM_H / 2, cz)
       rm.receiveShadow = true
       group.add(rm)
-      const el = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.BoxGeometry(ofisW, ROOM_H, ofisD)),
-        new THREE.LineBasicMaterial({ color })
-      )
-      el.position.copy(rm.position)
-      group.add(el)
 
       const d = document.createElement('div')
       d.style.cssText = 'color:#e2e8f0;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.65);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;'
