@@ -468,6 +468,13 @@ function aiKarakter(scene: THREE.Scene | THREE.Group, x: number, z: number, renk
   return g
 }
 
+function ekipEtiketiOlustur(metin: string, renk: string) {
+  const d = document.createElement('div')
+  d.style.cssText = `color:#fff;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.75);border-left:3px solid ${renk};padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;`
+  d.textContent = metin
+  return new CSS2DObject(d)
+}
+
 function merdiven(scene: THREE.Scene) {
   const sm = new THREE.MeshStandardMaterial({ color: 0x718096, roughness: 0.7 })
   const n = Math.ceil(FLOOR2_Y / 8)
@@ -505,6 +512,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
   const keysRef = useRef<Set<string>>(new Set())
   const currentFloorRef = useRef(1)
   const kat2LabelRefs = useRef<CSS2DObject[]>([])
+  const kat1LabelRefs = useRef<CSS2DObject[]>([])
   const chairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
   const meetingChairPositionsRef = useRef<{ x: number; z: number; yBase: number }[]>([])
   const collisionBoxesRef = useRef<{ x: number; z: number; w: number; d: number; f: number }[]>([])
@@ -1088,6 +1096,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
         currentFloorRef.current = newFloor
         useOfisStore.getState().setCurrentFloor(newFloor)
         for (const l of kat2LabelRefs.current) l.visible = newFloor === 2
+        for (const l of kat1LabelRefs.current) l.visible = newFloor === 1
         labelGroupRef.current.visible = newFloor === 1
       }
 
@@ -1494,11 +1503,12 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
     gorevBitisRef.current.clear()
     raporRef.current.clear()
     gorusmedekiEkipRef.current = null
+    kat1LabelRefs.current = []
+    kat2LabelRefs.current = []
   }, [ekipler])
 
   useEffect(() => {
     const group = roomGroupRef.current
-    const labelGroup = labelGroupRef.current
     const cb = collisionBoxesRef.current
     cb.length = 0
     cb.push(...meetingCollisionRef.current)
@@ -1516,25 +1526,6 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
       rm.receiveShadow = true
       group.add(rm)
 
-      const d = document.createElement('div')
-      d.style.cssText = 'color:#e2e8f0;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.65);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;'
-      d.textContent = ekip.ad
-      const l = new CSS2DObject(d)
-      l.position.set(ekip.oda_konum_x + 8, ROOM_H + 1, ekip.oda_konum_y + 8)
-      labelGroup.add(l)
-
-      if (ekip.yonetici_adi || ekip.ai_model_adi) {
-        const sd = document.createElement('div')
-        const p: string[] = []
-        if (ekip.yonetici_adi) p.push(`👤 ${ekip.yonetici_adi}`)
-        if (ekip.ai_model_adi) p.push(`🤖 ${ekip.ai_model_adi}`)
-        sd.style.cssText = 'color:#94a3b8;font-size:9px;text-shadow:0 1px 3px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;'
-        sd.textContent = p.join('  ')
-        const sl = new CSS2DObject(sd)
-        sl.position.set(ekip.oda_konum_x + 8, ROOM_H - 5, ekip.oda_konum_y + 8)
-        labelGroup.add(sl)
-      }
-
       mobilyaEkip(group, ekip.oda_konum_x, ekip.oda_konum_y, cb)
       hali(group, ekip.oda_konum_x + ekip.oda_genislik / 2, ekip.oda_konum_y + 30, ekip.oda_genislik - 24, 85, 0x2c5282)
       kitaplik(group, ekip.oda_konum_x + ekip.oda_genislik - 24, ekip.oda_konum_y + ekip.oda_yukseklik - 8, 0, Math.PI)
@@ -1551,6 +1542,11 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
         const ax = ekip.oda_konum_x + 100, az = ekip.oda_konum_y + 40
         const ai = aiKarakter(group, ax, az, grp?.renk || '#9333ea')
         aiCharsRef.current.push(ai)
+        const etiket = ekipEtiketiOlustur(ekip.ad, grp?.renk || '#9333ea')
+        etiket.position.set(0, 43, 0)
+        etiket.visible = currentFloorRef.current === 1
+        ai.add(etiket)
+        kat1LabelRefs.current.push(etiket)
         const spot: AiKayitSpot = { x: ax, z: az, ekipId: ekip.id, kat: 1 }
         aiSpotsRef.current.push(spot)
         kayit.uye = { grup: ai, spot, oks: { x: ax, z: az } }
@@ -1579,24 +1575,6 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
       rm.receiveShadow = true
       group.add(rm)
 
-      const d = document.createElement('div')
-      d.style.cssText = 'color:#e2e8f0;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.65);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;'
-      d.textContent = `👔 ${ekip.yonetici_adi}`
-      const l = new CSS2DObject(d)
-      l.position.set(ox + 8, FLOOR2_Y + ROOM_H + 2, oz + 8)
-      l.visible = currentFloorRef.current === 2
-      group.add(l)
-      kat2LabelRefs.current.push(l)
-
-      const sd = document.createElement('div')
-      sd.style.cssText = 'color:#94a3b8;font-size:9px;text-shadow:0 1px 3px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;'
-      sd.textContent = `${ekip.ad} Yöneticisi`
-      const sl = new CSS2DObject(sd)
-      sl.position.set(ox + 8, FLOOR2_Y + ROOM_H - 5, oz + 8)
-      sl.visible = currentFloorRef.current === 2
-      group.add(sl)
-      kat2LabelRefs.current.push(sl)
-
       hali(group, cx, oz + 55, ofisW - 30, 95, 0x4a3a8c, FLOOR2_Y)
       masa(group, ox + 45, oz + 60, FLOOR2_Y)
       sandalye(group, ox + 45, oz + 40, FLOOR2_Y)
@@ -1613,6 +1591,11 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
 
       const ai = aiKarakter(group, ox + 100, oz + 95, '#' + color.getHexString(), true)
       aiCharsRef.current.push(ai)
+      const etiket = ekipEtiketiOlustur(ekip.ad, '#' + color.getHexString())
+      etiket.position.set(0, 43, 0)
+      etiket.visible = currentFloorRef.current === 2
+      ai.add(etiket)
+      kat2LabelRefs.current.push(etiket)
       const ySpot: AiKayitSpot = { x: ox + 100, z: oz + 95, ekipId: ekip.id, kat: 2, yonetici: true }
       aiSpotsRef.current.push(ySpot)
       const yKayit = aiHaritaRef.current.get(ekip.id)
