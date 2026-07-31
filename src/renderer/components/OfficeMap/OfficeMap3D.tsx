@@ -1550,7 +1550,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
         const ax = ekip.oda_konum_x + 100, az = ekip.oda_konum_y + 40
         const ai = aiKarakter(group, ax, az, grp?.renk || '#9333ea')
         aiCharsRef.current.push(ai)
-        const etiket = ekipEtiketiOlustur(ekip.ad, grp?.renk || '#9333ea')
+        const etiket = ekipEtiketiOlustur(ekip.ad, grp?.renk || '#9333ea', ekip.yonetici_adi ? `👔 ${ekip.yonetici_adi}` : undefined)
         etiket.position.set(0, 43, 0)
         etiket.visible = currentFloorRef.current === 1
         ai.add(etiket)
@@ -1925,7 +1925,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
 
     for (const [ekipId, kayit] of aiHaritaRef.current) {
       if (!kayit.yonetici) continue
-      if (toplantidaki.includes(ekipId)) continue
+      if (toplantidaki.includes(ekipId) || gorusmedekiEkipRef.current === ekipId) continue
       const g = kayit.yonetici.grup
       if (hareketler.some((h) => h.grup === g)) continue
       const bekliyor = store.gorevler.some((x) => x.ekip_id === ekipId && x.durum === 'bekliyor')
