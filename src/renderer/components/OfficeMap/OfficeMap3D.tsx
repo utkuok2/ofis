@@ -1835,7 +1835,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
         if (!d.hedef) {
           const hedef = Math.random() < 0.4
             ? SOSYAL_NOKTALAR[Math.floor(Math.random() * SOSYAL_NOKTALAR.length)]
-            : GEZINME_NOKTALARI[Math.floor(Math.random() * GEZINME_NOKTALAR.length)]
+            : GEZINME_NOKTALARI[Math.floor(Math.random() * GEZINME_NOKTALARI.length)]
           yuruyusBaslat(g, hedef.x, hedef.z, 1)
           d.hedef = hedef
           d.varisZamani = simdi + 12000 + Math.random() * 20000

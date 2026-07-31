@@ -78,7 +78,7 @@ export function SohbetPanel({ officeMapRef }: { officeMapRef?: React.RefObject<O
       if (multiplayerMod !== 'katilimci') {
         const k = useOfisStore.getState().kullanici
         const msj = `"${icerik}" görevini aldım, hemen başlıyorum! 🏃`
-        const harita = officeMapRef.current
+        const harita = officeMapRef?.current
         if (harita) harita.gorevRaporla(eid, msj, true)
         else if (k) bildirim(`🤖 ${seciliEkip.ad}: ${msj}`, 'bilgi')
       }
