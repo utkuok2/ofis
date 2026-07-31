@@ -56,6 +56,31 @@ export interface SohbetMesaji {
   tarih: string
 }
 
+export interface Gorev {
+  id?: number
+  ekip_id: number
+  icerik: string
+  durum: 'bekliyor' | 'tamamlandi'
+  tarih: string
+}
+
+export interface Proje {
+  id?: number
+  ad: string
+  aciklama: string
+  olusturma: string
+}
+
+export interface ProjeDosyasi {
+  id?: number
+  proje_id: number
+  ad: string
+  tip: string
+  boyut: number
+  icerik_base64: string
+  tarih: string
+}
+
 export type AktifPanel = 'harita' | 'yonetim' | 'sohbet' | 'ayarlar'
 
 export interface ChatMessage {
@@ -93,6 +118,8 @@ export type PeerMesajTipi =
   | 'sohbet_mesaji'
   | 'ekip_guncelle'
   | 'tahta_guncelle'
+  | 'gorev_guncelle'
+  | 'toplanti_guncelle'
 
 export interface PeerMesaj {
   type: PeerMesajTipi

@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, SohbetMesaji, Ayar } from '../types'
+import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, SohbetMesaji, Ayar, Gorev, Proje, ProjeDosyasi } from '../types'
 
 const AI_MODELS_SEED: { ad: string; model_id: string }[] = [
   { ad: 'Mistral 7B (Free)', model_id: 'mistralai/mistral-7b-instruct:free' },
@@ -26,6 +26,9 @@ class OfisDatabase extends Dexie {
   kullanici!: EntityTable<Kullanici, 'id'>
   sohbetMesajlari!: EntityTable<SohbetMesaji, 'id'>
   ayarlar!: EntityTable<Ayar, 'key'>
+  gorevler!: EntityTable<Gorev, 'id'>
+  projeler!: EntityTable<Proje, 'id'>
+  projeDosyalari!: EntityTable<ProjeDosyasi, 'id'>
 
   constructor(username: string) {
     super('ofis_' + username)
@@ -73,6 +76,28 @@ class OfisDatabase extends Dexie {
       kullanici: '++id',
       sohbetMesajlari: '++id, sessionId, tarih',
       ayarlar: 'key',
+    })
+    this.version(6).stores({
+      yoneticiler: '++id, ad, soyad',
+      ekipGruplari: '++id, ad',
+      ekipler: '++id, ad, ekip_grubu_id',
+      aiModelleri: '++id, ad, model_id, aktif',
+      kullanici: '++id',
+      sohbetMesajlari: '++id, sessionId, tarih',
+      ayarlar: 'key',
+      gorevler: '++id, ekip_id, durum, tarih',
+    })
+    this.version(7).stores({
+      yoneticiler: '++id, ad, soyad',
+      ekipGruplari: '++id, ad',
+      ekipler: '++id, ad, ekip_grubu_id',
+      aiModelleri: '++id, ad, model_id, aktif',
+      kullanici: '++id',
+      sohbetMesajlari: '++id, sessionId, tarih',
+      ayarlar: 'key',
+      gorevler: '++id, ekip_id, durum, tarih',
+      projeler: '++id, ad',
+      projeDosyalari: '++id, proje_id, ad',
     })
   }
 

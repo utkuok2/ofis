@@ -1,5 +1,5 @@
 import { db } from './database'
-import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, SohbetMesaji } from '../types'
+import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, SohbetMesaji, Gorev, Proje, ProjeDosyasi } from '../types'
 
 export async function veriYukle() {
   const [kullanici, yoneticiler, ekipGruplari, ekipler, aiModelleri] = await Promise.all([
@@ -133,11 +133,11 @@ export async function apiKeySil() {
   await db.ayarlar.delete('apiKey')
 }
 
-export async function githubBilgiKaydet(bilgi: { kullaniciAdi: string; avatar: string; token: string }) {
+export async function githubBilgiKaydet(bilgi: { kullaniciAdi: string; avatar: string; token: string; repoErisim?: boolean }) {
   await db.ayarlar.put({ key: 'githubBilgi', value: JSON.stringify(bilgi) })
 }
 
-export async function githubBilgiYukle(): Promise<{ kullaniciAdi: string; avatar: string; token: string } | null> {
+export async function githubBilgiYukle(): Promise<{ kullaniciAdi: string; avatar: string; token: string; repoErisim?: boolean } | null> {
   const row = await db.ayarlar.get('githubBilgi')
   if (!row?.value) return null
   try {
@@ -145,4 +145,65 @@ export async function githubBilgiYukle(): Promise<{ kullaniciAdi: string; avatar
   } catch {
     return null
   }
+}
+
+export async function gorevleriYukle(ekipId: number): Promise<Gorev[]> {
+  return db.gorevler.where('ekip_id').equals(ekipId).sortBy('tarih')
+}
+
+export async function gorevleriTumuYukle(): Promise<Gorev[]> {
+  return db.gorevler.toArray()
+}
+
+export async function gorevEkle(ekipId: number, icerik: string): Promise<number> {
+  return (await db.gorevler.add({
+    ekip_id: ekipId,
+    icerik,
+    durum: 'bekliyor',
+    tarih: new Date().toISOString(),
+  }))!
+}
+
+export async function gorevDurumGuncelle(id: number, durum: Gorev['durum']) {
+  await db.gorevler.update(id, { durum })
+}
+
+export async function gorevSil(id: number) {
+  await db.gorevler.delete(id)
+}
+
+export async function gorevleriDegistir(ekipId: number, gorevler: Gorev[]) {
+  await db.transaction('rw', db.gorevler, async () => {
+    await db.gorevler.where('ekip_id').equals(ekipId).delete()
+    for (const g of gorevler) {
+      await db.gorevler.add({ ekip_id: g.ekip_id, icerik: g.icerik, durum: g.durum, tarih: g.tarih })
+    }
+  })
+}
+
+export async function projeleriYukle(): Promise<Proje[]> {
+  return (await db.projeler.toArray()).sort((a, b) => a.olusturma.localeCompare(b.olusturma))
+}
+
+export async function projeEkle(ad: string, aciklama: string): Promise<number> {
+  return (await db.projeler.add({ ad, aciklama, olusturma: new Date().toISOString() }))!
+}
+
+export async function projeSil(id: number) {
+  await db.transaction('rw', db.projeler, db.projeDosyalari, async () => {
+    await db.projeDosyalari.where('proje_id').equals(id).delete()
+    await db.projeler.delete(id)
+  })
+}
+
+export async function projeDosyalariYukle(projeId: number): Promise<ProjeDosyasi[]> {
+  return db.projeDosyalari.where('proje_id').equals(projeId).sortBy('ad')
+}
+
+export async function projeDosyasiEkle(d: Omit<ProjeDosyasi, 'id'>): Promise<number> {
+  return (await db.projeDosyalari.add(d))!
+}
+
+export async function projeDosyasiSil(id: number) {
+  await db.projeDosyalari.delete(id)
 }

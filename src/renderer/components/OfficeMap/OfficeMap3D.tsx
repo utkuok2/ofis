@@ -1,10 +1,13 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react'
+import React, { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react'
 import * as THREE from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
 import { useOfisStore } from '../../store/useOfisStore'
 import { uzakKarakterOlustur } from './RemotePlayer'
 import { herkeseGonder } from '../../services/peerService'
-import { tahtaGuncelleGonder } from '../../services/multiplayerService'
+import { tahtaGuncelleGonder, gorevSenkronla } from '../../services/multiplayerService'
+import { gorevDurumGuncelle } from '../../services/dbService'
+import { ProjePaneli } from './ProjePaneli'
+import type { Ekip } from '../../types'
 
 const TILE = 45
 const COLS = 30
@@ -13,6 +16,20 @@ const WALL_H = 20
 const ROOM_H = 16
 const FLOOR2_Y = 56
 const EYE_H = 28
+
+const GEZINME_NOKTALARI = [
+  { x: 280, z: 240 }, { x: 280, z: 500 }, { x: 280, z: 700 },
+  { x: 600, z: 240 }, { x: 600, z: 500 }, { x: 600, z: 700 },
+  { x: 900, z: 240 }, { x: 900, z: 500 }, { x: 900, z: 700 },
+  { x: 1200, z: 240 }, { x: 1200, z: 500 }, { x: 1200, z: 700 },
+  { x: 280, z: 60 }, { x: 600, z: 60 }, { x: 900, z: 60 }, { x: 1200, z: 60 },
+]
+const SOSYAL_NOKTALAR = [
+  { x: 130, z: 60 }, { x: 472, z: 72 }, { x: 900, z: 72 },
+  { x: 600, z: 770 }, { x: 440, z: 82 }, { x: 890, z: 82 },
+]
+const KAT2_BATI_NOKTALARI = [{ x: 200, z: 385 }, { x: 300, z: 760 }, { x: 500, z: 385 }]
+const KAT2_DOGU_NOKTALARI = [{ x: 1000, z: 385 }, { x: 900, z: 600 }, { x: 1200, z: 450 }, { x: 1200, z: 650 }]
 
 function woodTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas')
@@ -430,7 +447,11 @@ function merdiven(scene: THREE.Scene) {
   }
 }
 
-export function OfficeMap3D() {
+export interface OfficeMap3DRef {
+  gorevRaporla: (ekipId: number, mesaj: string, tamam: boolean) => void
+}
+
+export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_props, forwardRef) {
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
@@ -463,6 +484,29 @@ export function OfficeMap3D() {
   const tahtaCizimRef = useRef({ ciziyor: false, sonX: 0, sonY: 0, renk: '#111111', boyut: 3 })
   const tahtaCizimCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const [tahtaAktif, setTahtaAktif] = useState(false)
+
+  interface AiKayitSpot { x: number; z: number; ekipId: number; kat: number; yonetici?: boolean }
+  interface AiKayit { grup: THREE.Group; spot: AiKayitSpot; oks: { x: number; z: number } }
+  const aiHaritaRef = useRef<Map<number, { uye: AiKayit | null; yonetici: AiKayit | null }>>(new Map())
+  const aiHareketlerRef = useRef<{ grup: THREE.Group; yollar: [number, number, number][]; hedefIdx: number; spot: { x: number; z: number } | null; oks: { x: number; z: number } | null; donus: boolean }[]>([])
+  const toplantiKonumRef = useRef<{ tx: number; tz: number; tw: number; td: number } | null>(null)
+  const oncekiToplantiRef = useRef<number[]>([])
+  const projeTerminalRef = useRef<{ x: number; z: number } | null>(null)
+  const projeTerminalYakinRef = useRef(false)
+  const projeAktifRef = useRef(false)
+  const projeRafGroupRef = useRef<THREE.Group | null>(null)
+  const [projeAktif, setProjeAktif] = useState(false)
+
+  interface DavranisDurum { mod: 'serbest' | 'calisiyor'; hedef: { x: number; z: number } | null; isNoktasi: { x: number; z: number } | null; varisZamani: number }
+  const davranisRef = useRef<Map<number, DavranisDurum>>(new Map())
+  const yoneticiDavranisRef = useRef<Map<number, { hedef: { x: number; z: number } | null; varisZamani: number }>>(new Map())
+  const gorevBitisRef = useRef<Map<number, { bitis: number; deneme: number; ekipId: number }>>(new Map())
+  const raporRef = useRef<Map<number, { mesaj: string; tamam: boolean; sonYolYenile: number }>>(new Map())
+  const raporGrupRef = useRef<Map<THREE.Group, number>>(new Map())
+  const balonRef = useRef<{ balon: CSS2DObject; bitis: number } | null>(null)
+  const davranisTickRef = useRef(0)
+  const gorevScanRef = useRef(0)
+  const ekiplerRef = useRef<Ekip[] | null>(null)
   const uzakKarakterlerRef = useRef<Map<string, { group: THREE.Group; label: CSS2DObject }>>(new Map())
   const uzakHedefRef = useRef<Map<string, { x: number; z: number; f: number }>>(new Map())
   const sonKonumGonderimRef = useRef(0)
@@ -782,6 +826,7 @@ export function OfficeMap3D() {
 
     chairPositionsRef.current.push(...chairs2)
     meetingChairPositionsRef.current = chairs2
+    toplantiKonumRef.current = { tx, tz, tw, td }
 
     hali(sc, tx, tz, tw - 30, td - 30, 0x7f1d1d, FLOOR2_Y)
     kitaplik(sc, tx + 90, tz - td / 2 + 8, FLOOR2_Y, Math.PI)
@@ -834,6 +879,88 @@ export function OfficeMap3D() {
     const spot = new THREE.PointLight(0xfff1d6, 900, 600)
     spot.position.set(tx, FLOOR2_Y + tWallH - 10, tz)
     sc.add(spot)
+
+    const ptx = 260, ptz = 545, ptw = 400, ptd = 290
+    const pWallH = 60
+    const pMat = new THREE.MeshStandardMaterial({ color: 0x7fa88f, roughness: 0.05, metalness: 0.15, transparent: true, opacity: 0.2, side: THREE.DoubleSide })
+    function pWall(s: [number, number, number], p: [number, number, number]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(s[0], s[1], s[2]), pMat)
+      m.position.set(p[0], p[1], p[2])
+      m.castShadow = true; m.receiveShadow = true
+      sc.add(m)
+    }
+    pWall([ptw, pWallH, 1], [ptx, FLOOR2_Y + pWallH / 2, ptz - ptd / 2])
+    pWall([ptw, pWallH, 1], [ptx, FLOOR2_Y + pWallH / 2, ptz + ptd / 2])
+    pWall([1, pWallH, ptd], [ptx - ptw / 2, FLOOR2_Y + pWallH / 2, ptz])
+    const pDoorW = 18
+    pWall([1, pWallH, (ptd - pDoorW) / 2], [ptx + ptw / 2, FLOOR2_Y + pWallH / 2, ptz - (ptd + pDoorW) / 4])
+    pWall([1, pWallH, (ptd - pDoorW) / 2], [ptx + ptw / 2, FLOOR2_Y + pWallH / 2, ptz + (ptd + pDoorW) / 4])
+    const pDoorFrameMat = new THREE.MeshStandardMaterial({ color: 0xd0d8e8, roughness: 0.2, metalness: 0.6 })
+    for (const pz2 of [ptz - pDoorW / 2, ptz + pDoorW / 2]) {
+      const pp = new THREE.Mesh(new THREE.BoxGeometry(1, pWallH - 20, 1), pDoorFrameMat)
+      pp.position.set(ptx + ptw / 2, FLOOR2_Y + 10 + (pWallH - 20) / 2, pz2)
+      sc.add(pp)
+    }
+    const pTopBar = new THREE.Mesh(new THREE.BoxGeometry(1, 1, pDoorW + 2), pDoorFrameMat)
+    pTopBar.position.set(ptx + ptw / 2, FLOOR2_Y + pWallH - 4, ptz)
+    sc.add(pTopBar)
+    const pRoof = new THREE.Mesh(new THREE.BoxGeometry(ptw + 2, 1, ptd + 2), roofMat)
+    pRoof.position.set(ptx, FLOOR2_Y + pWallH, ptz)
+    pRoof.receiveShadow = true
+    sc.add(pRoof)
+
+    hali(sc, ptx, ptz, ptw - 40, ptd - 40, 0x2d6a4f, FLOOR2_Y)
+    masa(sc, 290, 620, FLOOR2_Y)
+    bilgisayar(sc, 290, 620, FLOOR2_Y)
+    sandalye(sc, 265, 600, FLOOR2_Y)
+    sandalye(sc, 315, 600, FLOOR2_Y)
+    masa(sc, 165, 620, FLOOR2_Y)
+    bilgisayar(sc, 165, 620, FLOOR2_Y)
+    sandalye(sc, 165, 595, FLOOR2_Y)
+    for (const [bx, bz] of [[75, 415], [445, 415], [75, 665], [445, 665]]) {
+      bitki(sc, bx, bz, 1.2, FLOOR2_Y)
+    }
+    copKovasi(sc, 430, 655, FLOOR2_Y, Math.PI)
+    tavanLambasi(sc, 200, 500, FLOOR2_Y + pWallH - 2)
+    tavanLambasi(sc, 330, 600, FLOOR2_Y + pWallH - 2)
+    projeTerminalRef.current = { x: 165, z: 620 }
+
+    collisionBoxesRef.current.push(
+      { x: ptx, z: ptz - ptd / 2, w: ptw + 4, d: 4, f: 2 },
+      { x: ptx, z: ptz + ptd / 2, w: ptw + 4, d: 4, f: 2 },
+      { x: ptx - ptw / 2, z: ptz, w: 4, d: ptd + 4, f: 2 },
+      { x: ptx + ptw / 2, z: ptz - (ptd + pDoorW) / 4, w: 4, d: (ptd - pDoorW) / 2 + 4, f: 2 },
+      { x: ptx + ptw / 2, z: ptz + (ptd + pDoorW) / 4, w: 4, d: (ptd - pDoorW) / 2 + 4, f: 2 },
+      { x: 290, z: 620, w: 60, d: 40, f: 2 },
+      { x: 165, z: 620, w: 40, d: 30, f: 2 },
+    )
+
+    const projeDiv = document.createElement('div')
+    projeDiv.style.cssText = 'color:#e2e8f0;font-size:13px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
+    projeDiv.textContent = '📁 Proje Odası'
+    const projeLabel = new CSS2DObject(projeDiv)
+    projeLabel.position.set(ptx + ptw / 2 + 1, FLOOR2_Y + pWallH + 4, ptz - 30)
+    projeLabel.visible = false
+    sc.add(projeLabel)
+    kat2LabelRefs.current.push(projeLabel)
+
+    const projeKatDiv = document.createElement('div')
+    projeKatDiv.style.cssText = 'color:#94a3b8;font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,0.8);background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:4px;pointer-events:none;'
+    projeKatDiv.textContent = '2. Kat — Proje Odası'
+    const projeKatLabel = new CSS2DObject(projeKatDiv)
+    projeKatLabel.position.set(ptx, FLOOR2_Y + 2, ptz)
+    projeKatLabel.visible = false
+    sc.add(projeKatLabel)
+    kat2LabelRefs.current.push(projeKatLabel)
+
+    const termDiv = document.createElement('div')
+    termDiv.style.cssText = 'color:#e2e8f0;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.65);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;'
+    termDiv.textContent = '💻 Proje Terminali — yaklaş ve E'
+    const termLabel = new CSS2DObject(termDiv)
+    termLabel.position.set(165, FLOOR2_Y + 16, 645)
+    termLabel.visible = false
+    sc.add(termLabel)
+    kat2LabelRefs.current.push(termLabel)
 
     const tDiv = document.createElement('div')
     tDiv.style.cssText = 'color:#e2e8f0;font-size:14px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
@@ -950,9 +1077,14 @@ export function OfficeMap3D() {
         const store = useOfisStore.getState()
         const tk = tahtaKonumRef.current
         tahtaYakinRef.current = tk !== null && cf === 2 && Math.sqrt((px - tk.x) ** 2 + (pz - tk.z) ** 2) < 70
+        const ptt = projeTerminalRef.current
+        projeTerminalYakinRef.current = ptt !== null && cf === 2 && Math.sqrt((px - ptt.x) ** 2 + (pz - ptt.z) ** 2) < 80
         if (tahtaYakinRef.current) {
           store.setSitPrompt('')
           store.setAiPrompt('E: Tahtaya Yaz')
+        } else if (projeTerminalYakinRef.current) {
+          store.setSitPrompt('')
+          store.setAiPrompt('E: Projeler')
         } else if (closestAI >= 0 && yonetici) {
           store.setSitPrompt('')
           store.setAiPrompt('E: Yönetici ile Görüş')
@@ -966,8 +1098,8 @@ export function OfficeMap3D() {
           store.setSitPrompt('')
           store.setAiPrompt('')
         }
-        nearestAiTeamRef.current = !tahtaYakinRef.current && closestAI >= 0 && !yonetici ? ais[closestAI].ekipId : null
-        nearestYoneticiTeamRef.current = !tahtaYakinRef.current && closestAI >= 0 && yonetici ? ais[closestAI].ekipId : null
+        nearestAiTeamRef.current = !tahtaYakinRef.current && !projeTerminalYakinRef.current && closestAI >= 0 && !yonetici ? ais[closestAI].ekipId : null
+        nearestYoneticiTeamRef.current = !tahtaYakinRef.current && !projeTerminalYakinRef.current && closestAI >= 0 && yonetici ? ais[closestAI].ekipId : null
       }
 
       if (sitRequestedRef.current) {
@@ -1039,6 +1171,98 @@ export function OfficeMap3D() {
         }
       }
 
+      const hk2 = aiHareketlerRef.current
+      for (let i = hk2.length - 1; i >= 0; i--) {
+        const h = hk2[i]
+        const hedef = h.yollar[h.hedefIdx]
+        const dx = hedef[0] - h.grup.position.x
+        const dy = hedef[1] - h.grup.position.y
+        const dz = hedef[2] - h.grup.position.z
+        const mesafe = Math.sqrt(dx * dx + dy * dy + dz * dz)
+        const adim = 1.4
+        if (mesafe <= adim) {
+          h.grup.position.set(hedef[0], hedef[1], hedef[2])
+          if (h.hedefIdx >= h.yollar.length - 1) {
+            if (h.donus && h.oks) {
+              if (h.spot) { h.spot.x = h.oks.x; h.spot.z = h.oks.z }
+              h.grup.rotation.y = 0
+            } else {
+              const tk3 = toplantiKonumRef.current
+              if (tk3) h.grup.rotation.y = Math.atan2(tk3.tx - hedef[0], tk3.tz - hedef[2])
+            }
+            hk2.splice(i, 1)
+            const raporEkipId = raporGrupRef.current.get(h.grup)
+            if (raporEkipId !== undefined) {
+              raporGrupRef.current.delete(h.grup)
+              const r = raporRef.current.get(raporEkipId)
+              if (r) {
+                raporRef.current.delete(raporEkipId)
+                const k = useOfisStore.getState().kullanici
+                const s = sceneRef.current
+                if (k && s) {
+                  const hx2 = Math.max(2, Math.min(COLS * TILE - 2, k.konum_x))
+                  const hz2 = Math.max(2, Math.min(ROWS * TILE - 2, k.konum_y))
+                  let nokta: [number, number, number] | null = null
+                  const gx = h.grup.position.x, gz = h.grup.position.z
+                  if (Math.abs(gx - hx2) > 140 || Math.abs(gz - hz2) > 140) {
+                    const koridor = hedef[1] >= FLOOR2_Y - 1 ? 385 : 30
+                    if (Math.abs(gx - koridor) <= 140) nokta = [koridor, hedef[1], hz2]
+                    else if (Math.abs(gz - koridor) <= 140) nokta = [hx2, hedef[1], koridor]
+                    else nokta = [koridor, hedef[1], hz2]
+                  } else {
+                    nokta = [hx2, hedef[1], hz2]
+                  }
+                  h.grup.position.set(nokta[0], nokta[1], nokta[2])
+                  h.grup.rotation.y = Math.atan2(hx2 - nokta[0], hz2 - nokta[2])
+                  balonGoster(r.mesaj, r.tamam ? '#38a169' : '#d69e2e')
+                }
+              }
+            }
+            continue
+          }
+          h.hedefIdx++
+          continue
+        }
+        h.grup.position.x += (dx / mesafe) * adim
+        h.grup.position.y += (dy / mesafe) * adim
+        h.grup.position.z += (dz / mesafe) * adim
+        h.grup.rotation.y = Math.atan2(dx, dz)
+      }
+
+      const balon = balonRef.current
+      if (balon && Date.now() > balon.bitis) {
+        balon.balon.parent?.remove(balon.balon)
+        balonRef.current = null
+      }
+
+      if (Date.now() % 500 < 16) {
+        davranisTara()
+        const kr = raporRef.current
+        if (kr.size > 0) {
+          const k = useOfisStore.getState().kullanici
+          const kat = useOfisStore.getState().currentFloor
+          for (const [ekipId, r] of kr) {
+            if (Date.now() - r.sonYolYenile < 1200) continue
+            const kayit = aiHaritaRef.current.get(ekipId)
+            const g = kayit?.uye?.grup
+            if (!g) continue
+            const basKat = g.position.y >= FLOOR2_Y - 1 ? 2 : 1
+            if (basKat !== kat) continue
+            const hx = k ? k.konum_x : g.position.x
+            const hz = k ? k.konum_y : g.position.z
+            const mevcutYol = hk2.find((hh) => hh.grup === g)
+            if (mevcutYol) {
+              const son = mevcutYol.yollar[mevcutYol.yollar.length - 1]
+              if (Math.abs(son[0] - hx) < 10 && Math.abs(son[2] - hz) < 10) continue
+              const idx = hk2.indexOf(mevcutYol)
+              hk2.splice(idx, 1)
+              raporBaslat(ekipId, { uye: kayit.uye }, r)
+              r.sonYolYenile = Date.now()
+            }
+          }
+        }
+      }
+
       cam.quaternion.setFromEuler(new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ'))
       ren.render(sc, cam)
       lr.render(sc, cam)
@@ -1099,6 +1323,11 @@ export function OfficeMap3D() {
     setTahtaAktif(false)
   }
 
+  function projeKapat() {
+    projeAktifRef.current = false
+    setProjeAktif(false)
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null
@@ -1107,10 +1336,21 @@ export function OfficeMap3D() {
         if (e.type === 'keydown' && e.key === 'Escape') tahtaKapat()
         return
       }
+      if (projeAktifRef.current) {
+        if (e.type === 'keydown' && e.key === 'Escape') projeKapat()
+        return
+      }
       if (useOfisStore.getState().aktifPanel !== 'harita') return
       if (e.type === 'keydown' && (e.key === 'e' || e.key === 'E')) {
         if (tahtaYakinRef.current && !sittingRef.current) {
           tahtaAc()
+          e.preventDefault()
+          return
+        }
+        if (projeTerminalYakinRef.current && !sittingRef.current) {
+          document.exitPointerLock()
+          projeAktifRef.current = true
+          setProjeAktif(true)
           e.preventDefault()
           return
         }
@@ -1176,6 +1416,12 @@ export function OfficeMap3D() {
   const ekipGruplari = useOfisStore((s) => s.ekipGruplari)
 
   useEffect(() => {
+    if (ekiplerRef.current === null) {
+      ekiplerRef.current = ekipler
+      return
+    }
+    if (ekiplerRef.current === ekipler) return
+    ekiplerRef.current = ekipler
     const group = roomGroupRef.current
     const labelGroup = labelGroupRef.current
     while (group.children.length) group.remove(group.children[0])
@@ -1184,6 +1430,17 @@ export function OfficeMap3D() {
     aiCharsRef.current = []
     chairPositionsRef.current = [...meetingChairPositionsRef.current]
     aiSpotsRef.current = []
+    aiHaritaRef.current.clear()
+    aiHareketlerRef.current.length = 0
+    davranisRef.current.clear()
+    yoneticiDavranisRef.current.clear()
+    gorevBitisRef.current.clear()
+    raporRef.current.clear()
+  }, [ekipler])
+
+  useEffect(() => {
+    const group = roomGroupRef.current
+    const labelGroup = labelGroupRef.current
     const cb = collisionBoxesRef.current
     cb.length = 0
     cb.push(...meetingCollisionRef.current)
@@ -1193,6 +1450,7 @@ export function OfficeMap3D() {
       const color = new THREE.Color(grp?.renk || '#4A90D9')
       const ex = ekip.oda_konum_x + ekip.oda_genislik / 2
       const ez = ekip.oda_konum_y + ekip.oda_yukseklik / 2
+      const kayit: { uye: AiKayit | null; yonetici: AiKayit | null } = { uye: null, yonetici: null }
 
       const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.12, roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide })
       const rm = new THREE.Mesh(new THREE.BoxGeometry(ekip.oda_genislik, ROOM_H, ekip.oda_yukseklik), roomMat)
@@ -1235,8 +1493,11 @@ export function OfficeMap3D() {
         const ax = ekip.oda_konum_x + 100, az = ekip.oda_konum_y + 40
         const ai = aiKarakter(group, ax, az, grp?.renk || '#9333ea')
         aiCharsRef.current.push(ai)
-        aiSpotsRef.current.push({ x: ax, z: az, ekipId: ekip.id, kat: 1 })
+        const spot: AiKayitSpot = { x: ax, z: az, ekipId: ekip.id, kat: 1 }
+        aiSpotsRef.current.push(spot)
+        kayit.uye = { grup: ai, spot, oks: { x: ax, z: az } }
       }
+      aiHaritaRef.current.set(ekip.id, kayit)
     }
 
     let mIdx = 0
@@ -1294,9 +1555,378 @@ export function OfficeMap3D() {
 
       const ai = aiKarakter(group, ox + 100, oz + 95, '#' + color.getHexString())
       aiCharsRef.current.push(ai)
-      aiSpotsRef.current.push({ x: ox + 100, z: oz + 95, ekipId: ekip.id, kat: 2, yonetici: true })
+      const ySpot: AiKayitSpot = { x: ox + 100, z: oz + 95, ekipId: ekip.id, kat: 2, yonetici: true }
+      aiSpotsRef.current.push(ySpot)
+      const yKayit = aiHaritaRef.current.get(ekip.id)
+      if (yKayit) {
+        yKayit.yonetici = { grup: ai, spot: ySpot, oks: { x: ox + 100, z: oz + 95 } }
+      }
     }
+
+    const simdiki = useOfisStore.getState().toplantiEkipleri
+    for (const eid of simdiki) toplantiyaYurut(eid)
   }, [ekipler, ekipGruplari])
+
+  const toplantiKoltugu = (ekipId: number, liste: number[]): [number, number] | null => {
+    const tk = toplantiKonumRef.current
+    if (!tk) return null
+    const pozlar: [number, number][] = [
+      [tk.tx, tk.tz - tk.td / 2 + 20], [tk.tx, tk.tz + tk.td / 2 - 20],
+      [tk.tx - tk.tw / 2 + 20, tk.tz], [tk.tx + tk.tw / 2 - 20, tk.tz],
+      [tk.tx - 40, tk.tz - tk.td / 2 + 20], [tk.tx + 40, tk.tz + tk.td / 2 - 20],
+    ]
+    const idx = Math.max(0, liste.indexOf(ekipId)) % pozlar.length
+    return pozlar[idx]
+  }
+
+  const toplantiOdasiYolu = (hx: number, hz: number): [number, number, number][] => {
+    const tk = toplantiKonumRef.current
+    if (!tk) return [[hx, FLOOR2_Y, hz]]
+    const yol: [number, number, number][] = []
+    yol.push([tk.tx, FLOOR2_Y, tk.tz + tk.td / 2 + 2])
+    const kuzey = hz < tk.tz - 40
+    const bati = hx < tk.tx - 60
+    if (kuzey) {
+      yol.push([tk.tx + tk.tw / 2 + 20, FLOOR2_Y, tk.tz + tk.td / 2 - 20])
+      yol.push([tk.tx + tk.tw / 2 + 20, FLOOR2_Y, tk.tz - tk.td / 2 + 20])
+      if (bati) yol.push([tk.tx - tk.tw / 2 + 20, FLOOR2_Y, tk.tz - tk.td / 2 + 20])
+    } else if (bati) {
+      yol.push([tk.tx - tk.tw / 2 + 20, FLOOR2_Y, tk.tz + tk.td / 2 - 20])
+    }
+    yol.push([hx, FLOOR2_Y, hz])
+    return yol
+  }
+
+  const uyeToplantiYolu = (ax: number, az: number, hx: number, hz: number): [number, number, number][] => {
+    const nS = Math.ceil(FLOOR2_Y / 8)
+    const zStart = ROWS * TILE - 80
+    const zEnd = ROWS * TILE - 80 - nS * 16
+    const stairX = COLS * TILE - 80
+    const yol: [number, number, number][] = [[ax, 0, az]]
+    yol.push([ax, 0, TILE * 1.5])
+    yol.push([stairX, 0, TILE * 1.5])
+    yol.push([stairX, 0, zStart])
+    for (let i = 0; i < nS; i++) yol.push([stairX, (i + 1) * 8, ROWS * TILE - 80 - (i + 1) * 16])
+    yol.push([stairX, FLOOR2_Y, zEnd])
+    yol.push([stairX, FLOOR2_Y, 600])
+    yol.push(...toplantiOdasiYolu(hx, hz))
+    return yol
+  }
+
+  const yoneticiToplantiYolu = (ox2: number, oz2: number, hx: number, hz: number): [number, number, number][] => {
+    const tk = toplantiKonumRef.current
+    const yol: [number, number, number][] = [[ox2, FLOOR2_Y, oz2]]
+    yol.push([ox2, FLOOR2_Y, 385])
+    yol.push([900, FLOOR2_Y, 385])
+    yol.push([900, FLOOR2_Y, 575])
+    if (tk) {
+      yol.push([tk.tx + 10, FLOOR2_Y, 575])
+      yol.push(...toplantiOdasiYolu(hx, hz))
+    } else {
+      yol.push([hx, FLOOR2_Y, hz])
+    }
+    return yol
+  }
+
+  const yuruyusuKes = (ekipId: number) => {
+    const kayit = aiHaritaRef.current.get(ekipId)
+    if (!kayit) return
+    const grupSet = new Set<THREE.Group>()
+    if (kayit.uye) grupSet.add(kayit.uye.grup)
+    if (kayit.yonetici) grupSet.add(kayit.yonetici.grup)
+    const h = aiHareketlerRef.current
+    for (let i = h.length - 1; i >= 0; i--) {
+      if (grupSet.has(h[i].grup)) h.splice(i, 1)
+    }
+    for (const g of grupSet) raporGrupRef.current.delete(g)
+  }
+
+  const toplantiyaYurut = (ekipId: number) => {
+    const kayit = aiHaritaRef.current.get(ekipId)
+    if (!kayit) return
+    yuruyusuKes(ekipId)
+    const koltuk = toplantiKoltugu(ekipId, useOfisStore.getState().toplantiEkipleri)
+    if (!koltuk) return
+    if (kayit.uye) {
+      const yol = uyeToplantiYolu(kayit.uye.oks.x, kayit.uye.oks.z, koltuk[0], koltuk[1])
+      aiHareketlerRef.current.push({ grup: kayit.uye.grup, yollar: yol, hedefIdx: 1, spot: kayit.uye.spot, oks: null, donus: false })
+      kayit.uye.spot.x = koltuk[0]
+      kayit.uye.spot.z = koltuk[1]
+    }
+    if (kayit.yonetici) {
+      const yol = yoneticiToplantiYolu(kayit.yonetici.oks.x, kayit.yonetici.oks.z, koltuk[0], koltuk[1])
+      aiHareketlerRef.current.push({ grup: kayit.yonetici.grup, yollar: yol, hedefIdx: 1, spot: kayit.yonetici.spot, oks: null, donus: false })
+      kayit.yonetici.spot.x = koltuk[0]
+      kayit.yonetici.spot.z = koltuk[1]
+    }
+  }
+
+  const geriYurut = (ekipId: number, onceki: number[]) => {
+    const kayit = aiHaritaRef.current.get(ekipId)
+    if (!kayit) return
+    yuruyusuKes(ekipId)
+    const rapor = raporRef.current.get(ekipId)
+    if (rapor && kayit.uye) {
+      raporBaslat(ekipId, kayit, rapor)
+      return
+    }
+    const koltuk = toplantiKoltugu(ekipId, onceki)
+    if (!koltuk) return
+    if (kayit.uye) {
+      const yol = uyeToplantiYolu(kayit.uye.oks.x, kayit.uye.oks.z, koltuk[0], koltuk[1]).reverse()
+      aiHareketlerRef.current.push({ grup: kayit.uye.grup, yollar: yol, hedefIdx: 1, spot: kayit.uye.spot, oks: kayit.uye.oks, donus: true })
+    }
+    if (kayit.yonetici) {
+      const yol = yoneticiToplantiYolu(kayit.yonetici.oks.x, kayit.yonetici.oks.z, koltuk[0], koltuk[1]).reverse()
+      aiHareketlerRef.current.push({ grup: kayit.yonetici.grup, yollar: yol, hedefIdx: 1, spot: kayit.yonetici.spot, oks: kayit.yonetici.oks, donus: true })
+    }
+  }
+
+  const yuruyusYolu = (ax: number, az: number, basKat: number, hx: number, hz: number, hedefKat: number): [number, number, number][] => {
+    const nS = Math.ceil(FLOOR2_Y / 8)
+    const zStart = ROWS * TILE - 80
+    const zEnd = ROWS * TILE - 80 - nS * 16
+    const stairX = COLS * TILE - 80
+    const yFloor = basKat === 2 ? FLOOR2_Y : 0
+    const yol: [number, number, number][] = [[ax, yFloor, az]]
+    if (basKat === hedefKat) {
+      if (basKat === 1) {
+        yol.push([ax, 0, TILE * 1.5])
+        yol.push([hx, 0, TILE * 1.5])
+      }
+      yol.push([hx, hedefKat === 2 ? FLOOR2_Y : 0, hz])
+      return yol
+    }
+    if (basKat === 1) {
+      yol.push([ax, 0, TILE * 1.5])
+      yol.push([stairX, 0, TILE * 1.5])
+      yol.push([stairX, 0, zStart])
+      for (let i = 0; i < nS; i++) yol.push([stairX, (i + 1) * 8, ROWS * TILE - 80 - (i + 1) * 16])
+      yol.push([stairX, FLOOR2_Y, zEnd])
+      yol.push([stairX, FLOOR2_Y, 600])
+      yol.push([hx, FLOOR2_Y, hz])
+    } else {
+      yol.push([ax, FLOOR2_Y, 385])
+      yol.push([900, FLOOR2_Y, 385])
+      yol.push([900, FLOOR2_Y, 700])
+      yol.push([stairX, FLOOR2_Y, 700])
+      yol.push([stairX, FLOOR2_Y, zEnd])
+      for (let i = nS - 1; i >= 0; i--) yol.push([stairX, (i + 0.5) * 8, ROWS * TILE - 80 - (i + 1) * 16])
+      yol.push([stairX, 0, zStart])
+      yol.push([stairX, 0, TILE * 1.5])
+      yol.push([hx, 0, hz])
+    }
+    return yol
+  }
+
+  const yuruyusBaslat = (grup: THREE.Group, hx: number, hz: number, hedefKat: number) => {
+    const basKat = grup.position.y >= FLOOR2_Y - 1 ? 2 : 1
+    const yol = yuruyusYolu(grup.position.x, grup.position.z, basKat, hx, hz, hedefKat)
+    aiHareketlerRef.current.push({ grup, yollar: yol, hedefIdx: 1, spot: null, oks: null, donus: false })
+  }
+
+  const balonGoster = (metin: string, renk: string, saniye = 8) => {
+    const eski = balonRef.current
+    if (eski) { eski.balon.parent?.remove(eski.balon); balonRef.current = null }
+    const sc = sceneRef.current
+    if (!sc) return
+    const d = document.createElement('div')
+    d.style.cssText = `color:#fff;font-size:12px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.85);border-left:3px solid ${renk};padding:4px 10px;border-radius:6px;white-space:nowrap;pointer-events:none;`
+    d.textContent = metin
+    const balon = new CSS2DObject(d)
+    sc.add(balon)
+    balonRef.current = { balon, bitis: Date.now() + saniye * 1000 }
+  }
+
+  const raporBaslat = (ekipId: number, kayit: { uye: AiKayit | null }, rapor: { mesaj: string; tamam: boolean; sonYolYenile: number }) => {
+    if (!kayit.uye) { raporRef.current.delete(ekipId); return }
+    const k = useOfisStore.getState().kullanici
+    const hedefKat = useOfisStore.getState().currentFloor
+    const g = kayit.uye.grup
+    const basKat = g.position.y >= FLOOR2_Y - 1 ? 2 : 1
+    const hx = k ? k.konum_x : g.position.x
+    const hz = k ? k.konum_y : g.position.z
+    const yol = yuruyusYolu(g.position.x, g.position.z, basKat, hx, hz, hedefKat)
+    raporGrupRef.current.set(g, ekipId)
+    aiHareketlerRef.current.push({ grup: g, yollar: yol, hedefIdx: 1, spot: null, oks: null, donus: false })
+  }
+
+  const gorevRaporla = (ekipId: number, mesaj: string, tamam: boolean) => {
+    yuruyusuKes(ekipId)
+    raporRef.current.set(ekipId, { mesaj, tamam, sonYolYenile: 0 })
+    const kayit = aiHaritaRef.current.get(ekipId)
+    if (!kayit?.uye) { raporRef.current.delete(ekipId); return }
+    if (useOfisStore.getState().toplantiEkipleri.includes(ekipId)) return
+    raporBaslat(ekipId, kayit, raporRef.current.get(ekipId)!)
+  }
+  useImperativeHandle(forwardRef, () => ({ gorevRaporla }))
+
+  const davranisTara = () => {
+    const store = useOfisStore.getState()
+    const simdi = performance.now()
+
+    if (store.multiplayerMod !== 'katilimci' && simdi - gorevScanRef.current > 2500) {
+      gorevScanRef.current = simdi
+      const gorevler = store.gorevler
+      const ids = new Set<number>()
+      const zaman = Date.now()
+      for (const g of gorevler) {
+        if (!g.id) continue
+        ids.add(g.id)
+        const kayit = gorevBitisRef.current.get(g.id)
+        if (g.durum === 'bekliyor') {
+          if (!kayit) {
+            gorevBitisRef.current.set(g.id, { bitis: zaman + 120000 + Math.random() * 240000, deneme: 0, ekipId: g.ekip_id })
+          } else if (zaman >= kayit.bitis) {
+            const tamam = Math.random() < 0.85 || kayit.deneme >= 2
+            if (tamam) {
+              gorevDurumGuncelle(g.id, 'tamamlandi').catch(() => {})
+              store.setGorevlerEkip(g.ekip_id, store.gorevler.map((x) => (x.id === g.id ? { ...x, durum: 'tamamlandi' } : x)))
+              gorevSenkronla(g.ekip_id)
+              gorevBitisRef.current.delete(g.id)
+              gorevRaporla(g.ekip_id, `"${g.icerik}" görevini tamamladım! ✅`, true)
+            } else {
+              kayit.deneme++
+              kayit.bitis = zaman + 60000 + Math.random() * 120000
+              gorevRaporla(g.ekip_id, `"${g.icerik}" görevini tamamlayamadım, biraz daha süreye ihtiyacım var ⚠️`, false)
+            }
+          }
+        } else if (kayit) {
+          gorevBitisRef.current.delete(g.id)
+        }
+      }
+      for (const [id] of gorevBitisRef.current) if (!ids.has(id)) gorevBitisRef.current.delete(id)
+    }
+
+    if (simdi - davranisTickRef.current < 2500) return
+    davranisTickRef.current = simdi
+    const toplantidaki = store.toplantiEkipleri
+    const hareketler = aiHareketlerRef.current
+
+    for (const [ekipId, kayit] of aiHaritaRef.current) {
+      if (!kayit.uye) continue
+      if (toplantidaki.includes(ekipId) || raporRef.current.has(ekipId)) continue
+      const g = kayit.uye.grup
+      if (hareketler.some((h) => h.grup === g)) continue
+      const bekliyor = store.gorevler.some((x) => x.ekip_id === ekipId && x.durum === 'bekliyor')
+      const d = davranisRef.current.get(ekipId)
+      if (bekliyor) {
+        if (!d || d.mod !== 'calisiyor' || !d.isNoktasi) {
+          const ekip = store.ekipler.find((e) => e.id === ekipId)
+          const tablolar = [30, 80, 130]
+          const ox = tablolar[Math.floor(Math.random() * tablolar.length)]
+          const is = { x: (ekip?.oda_konum_x ?? 0) + ox, z: (ekip?.oda_konum_y ?? 0) + 22 }
+          davranisRef.current.set(ekipId, { mod: 'calisiyor', hedef: null, isNoktasi: is, varisZamani: 0 })
+          yuruyusBaslat(g, is.x, is.z, 1)
+        } else if (Math.sqrt((g.position.x - d.isNoktasi.x) ** 2 + (g.position.z - d.isNoktasi.z) ** 2) > 6) {
+          yuruyusBaslat(g, d.isNoktasi.x, d.isNoktasi.z, 1)
+        }
+      } else {
+        if (!d) {
+          davranisRef.current.set(ekipId, { mod: 'serbest', hedef: null, isNoktasi: null, varisZamani: 0 })
+          continue
+        }
+        if (d.mod !== 'serbest') {
+          d.mod = 'serbest'
+          d.hedef = null
+          d.isNoktasi = null
+          d.varisZamani = 0
+        }
+        if (!d.hedef) {
+          const hedef = Math.random() < 0.4
+            ? SOSYAL_NOKTALAR[Math.floor(Math.random() * SOSYAL_NOKTALAR.length)]
+            : GEZINME_NOKTALARI[Math.floor(Math.random() * GEZINME_NOKTALAR.length)]
+          yuruyusBaslat(g, hedef.x, hedef.z, 1)
+          d.hedef = hedef
+          d.varisZamani = simdi + 12000 + Math.random() * 20000
+        } else if (Math.sqrt((g.position.x - d.hedef.x) ** 2 + (g.position.z - d.hedef.z) ** 2) < 6 && simdi > d.varisZamani) {
+          d.hedef = null
+        }
+      }
+    }
+
+    for (const [ekipId, kayit] of aiHaritaRef.current) {
+      if (!kayit.yonetici) continue
+      if (toplantidaki.includes(ekipId)) continue
+      const g = kayit.yonetici.grup
+      if (hareketler.some((h) => h.grup === g)) continue
+      const bekliyor = store.gorevler.some((x) => x.ekip_id === ekipId && x.durum === 'bekliyor')
+      const d = yoneticiDavranisRef.current.get(ekipId)
+      if (bekliyor) {
+        const oks = kayit.yonetici.oks
+        if (Math.sqrt((g.position.x - oks.x) ** 2 + (g.position.z - oks.z) ** 2) > 6) {
+          yuruyusBaslat(g, oks.x, oks.z, 2)
+        }
+        yoneticiDavranisRef.current.delete(ekipId)
+      } else {
+        if (!d) {
+          yoneticiDavranisRef.current.set(ekipId, { hedef: null, varisZamani: 0 })
+        } else if (!d.hedef) {
+          const ekip = store.ekipler.find((e) => e.id === ekipId)
+          const bati = (ekip?.oda_konum_x ?? 100) < 480
+          const noktalar = bati ? KAT2_BATI_NOKTALARI : KAT2_DOGU_NOKTALARI
+          const hedef = noktalar[Math.floor(Math.random() * noktalar.length)]
+          yuruyusBaslat(g, hedef.x, hedef.z, 2)
+          d.hedef = hedef
+          d.varisZamani = simdi + 30000 + Math.random() * 30000
+        } else if (Math.sqrt((g.position.x - d.hedef.x) ** 2 + (g.position.z - d.hedef.z) ** 2) < 6 && simdi > d.varisZamani) {
+          d.hedef = null
+        }
+      }
+    }
+  }
+
+  const toplantiEkipleri = useOfisStore((s) => s.toplantiEkipleri)
+
+  useEffect(() => {
+    const simdiki = toplantiEkipleri
+    const onceki = oncekiToplantiRef.current
+    for (const eid of simdiki) if (!onceki.includes(eid)) toplantiyaYurut(eid)
+    for (const eid of onceki) if (!simdiki.includes(eid)) geriYurut(eid, onceki)
+    oncekiToplantiRef.current = simdiki
+  }, [toplantiEkipleri])
+
+  const projeler = useOfisStore((s) => s.projeler)
+
+  useEffect(() => {
+    const sc = sceneRef.current
+    if (!sc) return
+    const eski = projeRafGroupRef.current
+    if (eski) {
+      sc.remove(eski)
+      eski.traverse((o) => { if (o instanceof THREE.Mesh) (o.material as THREE.Material).dispose() })
+    }
+    const g = new THREE.Group()
+    projeRafGroupRef.current = g
+    const rafMat = new THREE.MeshStandardMaterial({ color: 0x6b4a2b, roughness: 0.8 })
+    const raf = new THREE.Mesh(new THREE.BoxGeometry(340, 6, 26), rafMat)
+    raf.position.set(200, FLOOR2_Y + 38, 418)
+    raf.castShadow = true
+    g.add(raf)
+    for (const [ax, az] of [[80, 405], [320, 405], [80, 431], [320, 431]]) {
+      const ayak = new THREE.Mesh(new THREE.BoxGeometry(4, 38, 4), rafMat)
+      ayak.position.set(ax, FLOOR2_Y + 19, az)
+      g.add(ayak)
+    }
+    const renkler = [0x4A90D9, 0xD94A4A, 0x38a169, 0xd69e2e, 0x805ad5, 0xdd6b20, 0x06b6d4, 0xec4899, 0x84cc16]
+    projeler.forEach((p, i) => {
+      if (i >= 9) return
+      const renk = renkler[i % renkler.length]
+      const kub = new THREE.Mesh(new THREE.BoxGeometry(18, 18, 18), new THREE.MeshStandardMaterial({ color: renk, roughness: 0.35, metalness: 0.25, emissive: renk, emissiveIntensity: 0.12 }))
+      kub.position.set(92 + i * 27, FLOOR2_Y + 50, 418)
+      kub.castShadow = true
+      g.add(kub)
+      const d = document.createElement('div')
+      d.style.cssText = 'color:#e2e8f0;font-size:10px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.65);padding:1px 6px;border-radius:4px;white-space:nowrap;pointer-events:none;'
+      d.textContent = `📁 ${p.ad}`
+      const lbl = new CSS2DObject(d)
+      lbl.position.set(92 + i * 27, FLOOR2_Y + 66, 418)
+      lbl.visible = currentFloorRef.current === 2
+      g.add(lbl)
+      kat2LabelRefs.current.push(lbl)
+    })
+    sc.add(g)
+  }, [projeler])
 
   const uzakKullanicilar = useOfisStore((s) => s.uzakKullanicilar)
 
@@ -1484,6 +2114,15 @@ export function OfficeMap3D() {
           </div>
         </div>
       )}
+      {projeAktif && (
+        <ProjePaneli
+          acik={projeAktif}
+          kapat={() => {
+            projeAktifRef.current = false
+            setProjeAktif(false)
+          }}
+        />
+      )}
     </div>
   )
-}
+})

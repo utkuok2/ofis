@@ -8,8 +8,8 @@ import {
   herkeseGonder,
   tumBaglantilar,
 } from './peerService'
-import { veriYukle } from './dbService'
-import type { PeerMesaj, UzakKullanici } from '../types'
+import { veriYukle, gorevleriTumuYukle, gorevleriDegistir } from './dbService'
+import type { PeerMesaj, UzakKullanici, Gorev } from '../types'
 
 export function peerIdOlustur(kullaniciAdi: string): string {
   return 'ofis-' + kullaniciAdi.toLowerCase().replace(/[^a-z0-9-]/g, '-')
@@ -103,6 +103,14 @@ function mesajIsle(conn: any, mesaj: PeerMesaj) {
         store.setEkipGruplari(p.ekipGruplari)
         store.setYoneticiler(p.yoneticiler)
         store.setAiModelleri(p.aiModelleri)
+        if (Array.isArray(p.gorevler)) {
+          store.setGorevler(p.gorevler)
+          const ekipIdler = new Set<number>(p.gorevler.map((g: Gorev) => g.ekip_id))
+          for (const eid of ekipIdler) {
+            gorevleriDegistir(eid, p.gorevler.filter((g: Gorev) => g.ekip_id === eid)).catch(() => {})
+          }
+        }
+        if (Array.isArray(p.toplantiEkipleri)) store.setToplantiEkipleri(p.toplantiEkipleri)
       }
       break
     }
@@ -124,11 +132,32 @@ function mesajIsle(conn: any, mesaj: PeerMesaj) {
       }
       break
     }
+    case 'gorev_guncelle': {
+      const gorevler: Gorev[] = p.gorevler || []
+      store.setGorevlerEkip(p.ekipId, gorevler)
+      gorevleriDegistir(p.ekipId, gorevler).catch(() => {})
+      if (store.multiplayerMod === 'evsahibi') {
+        for (const c of tumBaglantilar()) {
+          if (c.peer !== conn.peer) mesajGonder(c, mesaj)
+        }
+      }
+      break
+    }
+    case 'toplanti_guncelle': {
+      store.setToplantiEkipleri(p.list || [])
+      if (store.multiplayerMod === 'evsahibi') {
+        for (const c of tumBaglantilar()) {
+          if (c.peer !== conn.peer) mesajGonder(c, mesaj)
+        }
+      }
+      break
+    }
   }
 }
 
 async function ofisVerisiniBaglantiyaGonder(conn: any) {
-  const data = await veriYukle()
+  const [data, gorevler] = await Promise.all([veriYukle(), gorevleriTumuYukle()])
+  const store = useOfisStore.getState()
   mesajGonder(conn, {
     type: 'ofis_verisi',
     payload: {
@@ -136,6 +165,8 @@ async function ofisVerisiniBaglantiyaGonder(conn: any) {
       ekipGruplari: data.ekipGruplari,
       yoneticiler: data.yoneticiler,
       aiModelleri: data.aiModelleri,
+      gorevler,
+      toplantiEkipleri: store.toplantiEkipleri,
     },
   })
 }
@@ -198,10 +229,24 @@ export function tahtaGuncelleGonder(dataUrl: string) {
   herkeseGonder({ type: 'tahta_guncelle', payload: { dataUrl } })
 }
 
+export function gorevSenkronla(ekipId: number) {
+  const store = useOfisStore.getState()
+  if (store.multiplayerMod === 'tek') return
+  const gorevler = store.gorevler.filter((g) => g.ekip_id === ekipId)
+  herkeseGonder({ type: 'gorev_guncelle', payload: { ekipId, gorevler } })
+}
+
+export function toplantiGonder(list: number[]) {
+  const store = useOfisStore.getState()
+  store.setToplantiEkipleri(list)
+  if (store.multiplayerMod === 'tek') return
+  herkeseGonder({ type: 'toplanti_guncelle', payload: { list } })
+}
+
 export async function ofisVerisiniTumBaglantilaraGonder() {
   const store = useOfisStore.getState()
   if (store.multiplayerMod !== 'evsahibi') return
-  const data = await veriYukle()
+  const [data, gorevler] = await Promise.all([veriYukle(), gorevleriTumuYukle()])
   herkeseGonder({
     type: 'ekip_guncelle',
     payload: {
@@ -209,6 +254,8 @@ export async function ofisVerisiniTumBaglantilaraGonder() {
       ekipGruplari: data.ekipGruplari,
       yoneticiler: data.yoneticiler,
       aiModelleri: data.aiModelleri,
+      gorevler,
+      toplantiEkipleri: store.toplantiEkipleri,
     },
   })
 }

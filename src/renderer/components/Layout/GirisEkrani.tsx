@@ -27,7 +27,10 @@ export function GirisEkrani() {
     setApiKey(savedKey)
 
     const gb = await githubBilgiYukle()
-    if (gb) setGithubBilgi(gb.kullaniciAdi, gb.avatar, gb.token)
+    if (gb) {
+      setGithubBilgi(gb.kullaniciAdi, gb.avatar, gb.token)
+      useOfisStore.getState().setGithubRepoErisim(!!gb.repoErisim)
+    }
 
     setKullanici(data.kullanici || { id: 1, ad: 'Ben', avatar: '', konum_x: 400, konum_y: 400 })
     setYoneticiler(data.yoneticiler)
@@ -58,6 +61,7 @@ export function GirisEkrani() {
       setGithubModal(false)
       setGithubToken('')
       setGithubBilgi(bilgi.kullaniciAdi, bilgi.avatar, bilgi.token)
+      useOfisStore.getState().setGithubRepoErisim(bilgi.repoErisim)
       await githubBilgiKaydet(bilgi)
       await ofisYukle(bilgi.kullaniciAdi)
     } catch (err: any) {
@@ -103,8 +107,10 @@ export function GirisEkrani() {
           <div className="text-[10px] text-gray-500 text-center leading-relaxed">
             GitHub ile bağlanmak için kişisel erişim tokenı (PAT) gerekir.
             <br />
+            Proje yedekleme için <span className="text-gray-300">repo</span> kapsamı da gerekir.
+            <br />
             <a
-              href="https://github.com/settings/tokens/new?description=Ofis%20AI&scopes=read:user"
+              href="https://github.com/settings/tokens/new?description=Ofis%20AI&scopes=read:user,repo"
               target="_blank"
               rel="noreferrer"
               className="underline text-blue-400 hover:text-blue-300"

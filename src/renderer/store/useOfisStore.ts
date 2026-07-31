@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, AktifPanel, UzakKullanici, MultiplayerMod, TakimMesaji } from '../types'
+import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, AktifPanel, UzakKullanici, MultiplayerMod, TakimMesaji, Gorev, Proje } from '../types'
 import { kullaniciKonumGuncelle } from '../services/dbService'
 import { peerKapat } from '../services/peerService'
 
@@ -35,6 +35,10 @@ interface OfisState {
   takimMesajlari: TakimMesaji[]
   bekleyenKatil: string
   tahtaDataUrl: string
+  gorevler: Gorev[]
+  toplantiEkipleri: number[]
+  projeler: Proje[]
+  githubRepoErisim: boolean
 
   setKullanici: (k: Kullanici) => void
   setYoneticiler: (list: Yonetici[]) => void
@@ -62,6 +66,11 @@ interface OfisState {
   takimMesajlariniTemizle: () => void
   setBekleyenKatil: (id: string) => void
   setTahtaDataUrl: (url: string) => void
+  setGorevler: (list: Gorev[]) => void
+  setGorevlerEkip: (ekipId: number, list: Gorev[]) => void
+  setToplantiEkipleri: (list: number[]) => void
+  setProjeler: (list: Proje[]) => void
+  setGithubRepoErisim: (b: boolean) => void
   cikisYap: () => void
   kullaniciHareket: (dx: number, dy: number) => void
   bildirimGoster: (mesaj: string, tur: Bildirim['tur']) => void
@@ -96,6 +105,10 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   takimMesajlari: [],
   bekleyenKatil: '',
   tahtaDataUrl: '',
+  gorevler: [],
+  toplantiEkipleri: [],
+  projeler: [],
+  githubRepoErisim: false,
 
   setKullanici: (k) => set({ kullanici: k }),
   setYoneticiler: (list) => set({ yoneticiler: list }),
@@ -141,10 +154,16 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   takimMesajlariniTemizle: () => set({ takimMesajlari: [] }),
   setBekleyenKatil: (id) => set({ bekleyenKatil: id }),
   setTahtaDataUrl: (url) => set({ tahtaDataUrl: url }),
+  setGorevler: (list) => set({ gorevler: list }),
+  setGorevlerEkip: (ekipId, list) =>
+    set((s) => ({ gorevler: [...s.gorevler.filter((g) => g.ekip_id !== ekipId), ...list] })),
+  setToplantiEkipleri: (list) => set({ toplantiEkipleri: list }),
+  setProjeler: (list) => set({ projeler: list }),
+  setGithubRepoErisim: (b) => set({ githubRepoErisim: b }),
   cikisYap: () => {
     peerKapat()
     localStorage.removeItem('ofis_kullanici')
-    set({ kullaniciAdi: '', kullanici: null, yoneticiler: [], ekipGruplari: [], ekipler: [], aiModelleri: [], apiKey: '', seciliEkipId: null, sohbetModu: 'ekip', githubKullanici: '', githubAvatar: '', githubToken: '', multiplayerMod: 'tek', peerId: '', uzakKullanicilar: [], takimMesajlari: [], bekleyenKatil: '' })
+    set({ kullaniciAdi: '', kullanici: null, yoneticiler: [], ekipGruplari: [], ekipler: [], aiModelleri: [], apiKey: '', seciliEkipId: null, sohbetModu: 'ekip', githubKullanici: '', githubAvatar: '', githubToken: '', multiplayerMod: 'tek', peerId: '', uzakKullanicilar: [], takimMesajlari: [], bekleyenKatil: '', gorevler: [], toplantiEkipleri: [], projeler: [], githubRepoErisim: false })
     window.location.reload()
   },
 

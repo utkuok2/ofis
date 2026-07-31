@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useOfisStore } from './store/useOfisStore'
 import { OfficeMap } from './components/OfficeMap/OfficeMap'
+import type { OfficeMap3DRef } from './components/OfficeMap/OfficeMap'
 import { YonetimPaneli } from './components/Management/YonetimPaneli'
 import { SohbetPanel } from './components/Chat/SohbetPanel'
 import { Header } from './components/Layout/Header'
@@ -8,10 +9,11 @@ import { BildirimToast } from './components/Layout/BildirimToast'
 import { GirisEkrani } from './components/Layout/GirisEkrani'
 import { onlineOfiseKatil } from './services/multiplayerService'
 import { initDatabase } from './services/database'
-import { veriYukle, apiKeyYukle, githubBilgiYukle } from './services/dbService'
+import { veriYukle, apiKeyYukle, githubBilgiYukle, gorevleriTumuYukle, projeleriYukle } from './services/dbService'
 
 export default function App() {
   const { kullanici, kullaniciAdi, aktifPanel, bekleyenKatil, setBekleyenKatil } = useOfisStore()
+  const officeMapRef = useRef<OfficeMap3DRef | null>(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -38,7 +40,12 @@ export default function App() {
         store.setAiModelleri(data.aiModelleri)
         store.setApiKey(await apiKeyYukle())
         const gb = await githubBilgiYukle()
-        if (gb) store.setGithubBilgi(gb.kullaniciAdi, gb.avatar, gb.token)
+        if (gb) {
+          store.setGithubBilgi(gb.kullaniciAdi, gb.avatar, gb.token)
+          store.setGithubRepoErisim(!!gb.repoErisim)
+        }
+        store.setGorevler(await gorevleriTumuYukle())
+        store.setProjeler(await projeleriYukle())
       })
       .catch(() => {})
   }, [kullaniciAdi, kullanici])
@@ -69,9 +76,9 @@ export default function App() {
     <div className="flex flex-col h-screen bg-gray-900 text-white">
       <Header />
       <div className="flex-1 relative">
-        <OfficeMap />
+        <OfficeMap ref={officeMapRef} />
         {aktifPanel === 'yonetim' && <YonetimPaneli />}
-        {aktifPanel === 'sohbet' && <SohbetPanel />}
+        {aktifPanel === 'sohbet' && <SohbetPanel officeMapRef={officeMapRef} />}
       </div>
       <BildirimToast />
     </div>

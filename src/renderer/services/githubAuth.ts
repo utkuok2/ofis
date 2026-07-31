@@ -4,6 +4,7 @@ export interface GithubBilgi {
   kullaniciAdi: string
   avatar: string
   token: string
+  repoErisim: boolean
 }
 
 export async function githubTokenDogrula(token: string): Promise<GithubBilgi> {
@@ -16,9 +17,14 @@ export async function githubTokenDogrula(token: string): Promise<GithubBilgi> {
   }
   const user = await resp.json()
   if (!user.login) throw new Error('GitHub kullanıcısı bulunamadı')
+  const scopes = (resp.headers.get('x-oauth-scopes') || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+  const repoErisim = scopes.includes('repo')
   return {
     kullaniciAdi: user.login,
     avatar: user.avatar_url || '',
     token: token.trim(),
+    repoErisim,
   }
 }
