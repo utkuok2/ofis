@@ -824,6 +824,7 @@ export function OfficeMap3D() {
     tahtaDiv.textContent = '✏️ Yazı Tahtası — yaklaş ve E'
     const tahtaLabel = new CSS2DObject(tahtaDiv)
     tahtaLabel.position.set(tx, FLOOR2_Y + 36, tz - td / 2 + 8)
+    tahtaLabel.visible = false
     sc.add(tahtaLabel)
     kat2LabelRefs.current.push(tahtaLabel)
     bitki(sc, tx - tw / 2 + 20, tz + td / 2 - 20, 1.2, FLOOR2_Y)
@@ -1020,6 +1021,9 @@ export function OfficeMap3D() {
         for (const [pid, obj] of uzakKarakterlerRef.current) {
           const hedef = uzakHedefRef.current.get(pid)
           if (!hedef) continue
+          const gorunur = hedef.f === currentFloorRef.current
+          obj.group.visible = gorunur
+          obj.label.visible = gorunur
           obj.group.position.x += (hedef.x - obj.group.position.x) * 0.2
           obj.group.position.z += (hedef.z - obj.group.position.z) * 0.2
           obj.label.position.x = obj.group.position.x
@@ -1274,6 +1278,7 @@ export function OfficeMap3D() {
       d.textContent = `👔 ${ekip.yonetici_adi}`
       const l = new CSS2DObject(d)
       l.position.set(ox + 8, FLOOR2_Y + ROOM_H + 2, oz + 8)
+      l.visible = currentFloorRef.current === 2
       group.add(l)
       kat2LabelRefs.current.push(l)
 
@@ -1282,6 +1287,7 @@ export function OfficeMap3D() {
       sd.textContent = `${ekip.ad} Yöneticisi`
       const sl = new CSS2DObject(sd)
       sl.position.set(ox + 8, FLOOR2_Y + ROOM_H - 5, oz + 8)
+      sl.visible = currentFloorRef.current === 2
       group.add(sl)
       kat2LabelRefs.current.push(sl)
 
