@@ -1,50 +1,65 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { useOfisStore } from './store/useOfisStore'
-import { veriYukle } from './services/dbService'
-import { db } from './services/database'
 import { OfficeMap } from './components/OfficeMap/OfficeMap'
 import { YonetimPaneli } from './components/Management/YonetimPaneli'
 import { SohbetPanel } from './components/Chat/SohbetPanel'
 import { Header } from './components/Layout/Header'
 import { BildirimToast } from './components/Layout/BildirimToast'
+import { GirisEkrani } from './components/Layout/GirisEkrani'
+import { onlineOfiseKatil } from './services/multiplayerService'
+import { initDatabase } from './services/database'
+import { veriYukle, apiKeyYukle, githubBilgiYukle } from './services/dbService'
 
 export default function App() {
-  const { kullanici, aktifPanel, setKullanici, setYoneticiler, setEkipGruplari, setEkipler, setAiModelleri } = useOfisStore()
-  const [hata, setHata] = useState('')
+  const { kullanici, kullaniciAdi, aktifPanel, bekleyenKatil, setBekleyenKatil } = useOfisStore()
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const katil = params.get('katil')
+    if (katil) {
+      setBekleyenKatil(katil)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('katil')
+      window.history.replaceState({}, '', url)
+    }
+  }, [setBekleyenKatil])
+
+  useEffect(() => {
+    if (!kullaniciAdi || kullanici) return
+    const store = useOfisStore.getState()
+    const db = initDatabase(kullaniciAdi)
     db.initialize()
       .then(() => veriYukle())
-      .then((data) => {
-        const user = data.kullanici || { id: 1, ad: 'Ben', avatar: '', konum_x: 400, konum_y: 400 }
-        setKullanici(user)
-        setYoneticiler(data.yoneticiler)
-        setEkipGruplari(data.ekipGruplari)
-        setEkipler(data.ekipler)
-        setAiModelleri(data.aiModelleri)
+      .then(async (data) => {
+        store.setKullanici(data.kullanici || { id: 1, ad: 'Ben', avatar: '', konum_x: 400, konum_y: 400 })
+        store.setYoneticiler(data.yoneticiler)
+        store.setEkipGruplari(data.ekipGruplari)
+        store.setEkipler(data.ekipler)
+        store.setAiModelleri(data.aiModelleri)
+        store.setApiKey(await apiKeyYukle())
+        const gb = await githubBilgiYukle()
+        if (gb) store.setGithubBilgi(gb.kullaniciAdi, gb.avatar, gb.token)
       })
-      .catch((err) => {
-        console.error('Yükleme hatası:', err)
-        setHata(err?.message || 'Bilinmeyen hata')
+      .catch(() => {})
+  }, [kullaniciAdi, kullanici])
+
+  useEffect(() => {
+    if (kullaniciAdi && bekleyenKatil) {
+      const hedef = bekleyenKatil
+      setBekleyenKatil('')
+      onlineOfiseKatil(hedef).catch(() => {
+        useOfisStore.getState().bildirimGoster('Ofise katılınamadı: davet kodu bulunamadı', 'hata')
       })
-  }, [])
+    }
+  }, [kullaniciAdi, bekleyenKatil, setBekleyenKatil])
+
+  if (!kullaniciAdi) return <GirisEkrani />
 
   if (!kullanici) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
         <div className="text-center">
-          <div className="text-xl mb-4">{hata ? 'Yükleme hatası' : 'Ofis yükleniyor...'}</div>
-          {hata && (
-            <div className="text-sm text-red-400 mb-4 max-w-md px-4">{hata}</div>
-          )}
-          {hata && (
-            <button
-              onClick={() => { setHata(''); localStorage.clear(); indexedDB.deleteDatabase('ofis'); window.location.reload() }}
-              className="px-4 py-2 bg-blue-600 rounded text-sm"
-            >
-              Veritabanını Sıfırla ve Yeniden Dene
-            </button>
-          )}
+          <div className="text-xl">Ofis yükleniyor...</div>
         </div>
       </div>
     )

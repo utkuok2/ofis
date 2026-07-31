@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useCallback } from 'react'
 import * as THREE from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
 import { useOfisStore } from '../../store/useOfisStore'
+import { uzakKarakterOlustur } from './RemotePlayer'
+import { herkeseGonder } from '../../services/peerService'
 
 const TILE = 40
 const COLS = 30
@@ -209,6 +211,9 @@ export function OfficeMap3D() {
   const prevCamPosRef = useRef<{ x: number; y: number; z: number } | null>(null)
   const aiSpotsRef = useRef<{ x: number; z: number; ekipId: number }[]>([])
   const nearestAiTeamRef = useRef<number | null>(null)
+  const uzakKarakterlerRef = useRef<Map<string, { group: THREE.Group; label: CSS2DObject }>>(new Map())
+  const uzakHedefRef = useRef<Map<string, { x: number; z: number; f: number }>>(new Map())
+  const sonKonumGonderimRef = useRef(0)
 
   useEffect(() => {
     const el = containerRef.current
@@ -624,6 +629,26 @@ export function OfficeMap3D() {
         v.mesh.rotation.y = Math.atan2(to[0] - from[0], to[1] - from[1])
       }
 
+      const uzakState = useOfisStore.getState()
+      if (uzakState.multiplayerMod !== 'tek') {
+        for (const [pid, obj] of uzakKarakterlerRef.current) {
+          const hedef = uzakHedefRef.current.get(pid)
+          if (!hedef) continue
+          obj.group.position.x += (hedef.x - obj.group.position.x) * 0.2
+          obj.group.position.z += (hedef.z - obj.group.position.z) * 0.2
+          obj.label.position.x = obj.group.position.x
+          obj.label.position.z = obj.group.position.z
+        }
+        const now = performance.now()
+        if (now - sonKonumGonderimRef.current > 120) {
+          sonKonumGonderimRef.current = now
+          herkeseGonder({
+            type: 'konum_guncelle',
+            payload: { peerId: uzakState.peerId, x: px, y: pz, kat: currentFloorRef.current },
+          })
+        }
+      }
+
       cam.quaternion.setFromEuler(new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ'))
       ren.render(sc, cam)
       lr.render(sc, cam)
@@ -756,6 +781,31 @@ export function OfficeMap3D() {
       }
     }
   }, [ekipler, ekipGruplari])
+
+  const uzakKullanicilar = useOfisStore((s) => s.uzakKullanicilar)
+
+  useEffect(() => {
+    const scene = sceneRef.current
+    if (!scene) return
+    const mevcut = uzakKarakterlerRef.current
+
+    for (const [pid, obj] of mevcut) {
+      if (!uzakKullanicilar.some((u) => u.peerId === pid)) {
+        scene.remove(obj.group)
+        scene.remove(obj.label)
+        mevcut.delete(pid)
+        uzakHedefRef.current.delete(pid)
+      }
+    }
+
+    for (const u of uzakKullanicilar) {
+      if (!mevcut.has(u.peerId)) {
+        const olusan = uzakKarakterOlustur(scene, u)
+        mevcut.set(u.peerId, olusan)
+      }
+      uzakHedefRef.current.set(u.peerId, { x: u.konum_x, z: u.konum_y, f: u.mevcutKat })
+    }
+  }, [uzakKullanicilar])
 
   useEffect(() => {
     const unsub = useOfisStore.subscribe((s) => {

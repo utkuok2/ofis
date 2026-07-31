@@ -6,6 +6,7 @@ import {
   ekipEkle, ekipSil, ekipGuncelle,
   veriYukle,
 } from '../../services/dbService'
+import { ofisVerisiniTumBaglantilaraGonder } from '../../services/multiplayerService'
 
 type AltSekme = 'ekipler' | 'gruplar' | 'yoneticiler'
 
@@ -36,6 +37,7 @@ export function YonetimPaneli() {
     setYoneticiler(data.yoneticiler)
     setEkipGruplari(data.ekipGruplari)
     setEkipler(data.ekipler)
+    ofisVerisiniTumBaglantilaraGonder()
   }
 
   const handleYoneticiEkle = async () => {

@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, SohbetMesaji } from '../types'
+import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, SohbetMesaji, Ayar } from '../types'
 
 const AI_MODELS_SEED: { ad: string; model_id: string }[] = [
   { ad: 'Mistral 7B (Free)', model_id: 'mistralai/mistral-7b-instruct:free' },
@@ -10,6 +10,14 @@ const AI_MODELS_SEED: { ad: string; model_id: string }[] = [
   { ad: 'OpenRouter Free (Auto)', model_id: 'openrouter/free' },
 ]
 
+export let db: OfisDatabase
+
+export function initDatabase(username: string): OfisDatabase {
+  if (db) db.close()
+  db = new OfisDatabase(username)
+  return db
+}
+
 class OfisDatabase extends Dexie {
   yoneticiler!: EntityTable<Yonetici, 'id'>
   ekipGruplari!: EntityTable<EkipGrubu, 'id'>
@@ -17,9 +25,10 @@ class OfisDatabase extends Dexie {
   aiModelleri!: EntityTable<AIModel, 'id'>
   kullanici!: EntityTable<Kullanici, 'id'>
   sohbetMesajlari!: EntityTable<SohbetMesaji, 'id'>
+  ayarlar!: EntityTable<Ayar, 'key'>
 
-  constructor() {
-    super('ofis')
+  constructor(username: string) {
+    super('ofis_' + username)
     this.version(1).stores({
       yoneticiler: '++id, ad, soyad',
       ekipGruplari: '++id, ad',
@@ -55,6 +64,15 @@ class OfisDatabase extends Dexie {
         if (m.aktif === true) m.aktif = 1
         if (m.aktif === false) m.aktif = 0
       })
+    })
+    this.version(5).stores({
+      yoneticiler: '++id, ad, soyad',
+      ekipGruplari: '++id, ad',
+      ekipler: '++id, ad, ekip_grubu_id',
+      aiModelleri: '++id, ad, model_id, aktif',
+      kullanici: '++id',
+      sohbetMesajlari: '++id, sessionId, tarih',
+      ayarlar: 'key',
     })
   }
 
@@ -107,5 +125,3 @@ class OfisDatabase extends Dexie {
     }
   }
 }
-
-export const db = new OfisDatabase()

@@ -62,3 +62,38 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
 }
+
+export interface Ayar {
+  key: string
+  value: string
+}
+
+export interface UzakKullanici {
+  peerId: string
+  kullaniciAdi: string
+  avatar: string
+  githubKullanici: string
+  konum_x: number
+  konum_y: number
+  mevcutKat: number
+}
+
+export type MultiplayerMod = 'tek' | 'evsahibi' | 'katilimci'
+
+export interface TakimMesaji {
+  kullaniciAdi: string
+  mesaj: string
+  tarih: string
+}
+
+export type PeerMesajTipi =
+  | 'kullanici_bilgi'
+  | 'konum_guncelle'
+  | 'ofis_verisi'
+  | 'sohbet_mesaji'
+  | 'ekip_guncelle'
+
+export interface PeerMesaj {
+  type: PeerMesajTipi
+  payload: any
+}

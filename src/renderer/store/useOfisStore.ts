@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, AktifPanel } from '../types'
+import type { Yonetici, EkipGrubu, Ekip, AIModel, Kullanici, AktifPanel, UzakKullanici, MultiplayerMod, TakimMesaji } from '../types'
 import { kullaniciKonumGuncelle } from '../services/dbService'
+import { peerKapat } from '../services/peerService'
 
 export interface Bildirim {
   mesaj: string
@@ -23,6 +24,15 @@ interface OfisState {
   isSitting: boolean
   aiPrompt: string
   apiKey: string
+  kullaniciAdi: string
+  githubKullanici: string
+  githubAvatar: string
+  githubToken: string
+  multiplayerMod: MultiplayerMod
+  peerId: string
+  uzakKullanicilar: UzakKullanici[]
+  takimMesajlari: TakimMesaji[]
+  bekleyenKatil: string
 
   setKullanici: (k: Kullanici) => void
   setYoneticiler: (list: Yonetici[]) => void
@@ -37,6 +47,18 @@ interface OfisState {
   setIsSitting: (b: boolean) => void
   setAiPrompt: (p: string) => void
   setApiKey: (key: string) => void
+  setKullaniciAdi: (ad: string) => void
+  setGithubBilgi: (kullanici: string, avatar: string, token: string) => void
+  setMultiplayerMod: (m: MultiplayerMod) => void
+  setPeerId: (id: string) => void
+  uzakKullaniciEkle: (k: UzakKullanici) => void
+  uzakKullaniciKaldir: (peerId: string) => void
+  uzakKullaniciKonumGuncelle: (peerId: string, x: number, y: number, kat: number) => void
+  uzakKullanicilariTemizle: () => void
+  takimMesajiEkle: (m: TakimMesaji) => void
+  takimMesajlariniTemizle: () => void
+  setBekleyenKatil: (id: string) => void
+  cikisYap: () => void
   kullaniciHareket: (dx: number, dy: number) => void
   bildirimGoster: (mesaj: string, tur: Bildirim['tur']) => void
   bildirimKaldir: (id: number) => void
@@ -58,7 +80,16 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   sitPrompt: '',
   isSitting: false,
   aiPrompt: '',
-  apiKey: localStorage.getItem('zen_api_key') || '',
+  apiKey: '',
+  kullaniciAdi: localStorage.getItem('ofis_kullanici') || '',
+  githubKullanici: '',
+  githubAvatar: '',
+  githubToken: '',
+  multiplayerMod: 'tek',
+  peerId: '',
+  uzakKullanicilar: [],
+  takimMesajlari: [],
+  bekleyenKatil: '',
 
   setKullanici: (k) => set({ kullanici: k }),
   setYoneticiler: (list) => set({ yoneticiler: list }),
@@ -72,7 +103,42 @@ export const useOfisStore = create<OfisState>((set, get) => ({
   setSitPrompt: (p) => set({ sitPrompt: p }),
   setIsSitting: (b) => set({ isSitting: b }),
   setAiPrompt: (p) => set({ aiPrompt: p }),
-  setApiKey: (key) => { localStorage.setItem('zen_api_key', key); set({ apiKey: key }) },
+  setApiKey: (key) => set({ apiKey: key }),
+  setKullaniciAdi: (ad) => {
+    localStorage.setItem('ofis_kullanici', ad)
+    set({ kullaniciAdi: ad })
+  },
+  setGithubBilgi: (kullanici, avatar, token) => {
+    set({ githubKullanici: kullanici, githubAvatar: avatar, githubToken: token })
+  },
+  setMultiplayerMod: (m) => set({ multiplayerMod: m }),
+  setPeerId: (id) => set({ peerId: id }),
+  uzakKullaniciEkle: (k) => {
+    set((s) => {
+      if (s.uzakKullanicilar.some((u) => u.peerId === k.peerId)) return s
+      return { uzakKullanicilar: [...s.uzakKullanicilar, k] }
+    })
+  },
+  uzakKullaniciKaldir: (peerId) => {
+    set((s) => ({ uzakKullanicilar: s.uzakKullanicilar.filter((u) => u.peerId !== peerId) }))
+  },
+  uzakKullaniciKonumGuncelle: (peerId, x, y, kat) => {
+    set((s) => ({
+      uzakKullanicilar: s.uzakKullanicilar.map((u) =>
+        u.peerId === peerId ? { ...u, konum_x: x, konum_y: y, mevcutKat: kat } : u
+      ),
+    }))
+  },
+  uzakKullanicilariTemizle: () => set({ uzakKullanicilar: [] }),
+  takimMesajiEkle: (m) => set((s) => ({ takimMesajlari: [...s.takimMesajlari, m] })),
+  takimMesajlariniTemizle: () => set({ takimMesajlari: [] }),
+  setBekleyenKatil: (id) => set({ bekleyenKatil: id }),
+  cikisYap: () => {
+    peerKapat()
+    localStorage.removeItem('ofis_kullanici')
+    set({ kullaniciAdi: '', kullanici: null, yoneticiler: [], ekipGruplari: [], ekipler: [], aiModelleri: [], apiKey: '', seciliEkipId: null, githubKullanici: '', githubAvatar: '', githubToken: '', multiplayerMod: 'tek', peerId: '', uzakKullanicilar: [], takimMesajlari: [], bekleyenKatil: '' })
+    window.location.reload()
+  },
 
   kullaniciHareket: (dx, dy) => {
     const k = get().kullanici

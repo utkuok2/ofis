@@ -118,3 +118,31 @@ export async function sohbetMesajiKaydet(mesaj: Omit<SohbetMesaji, 'id'>) {
 export async function sohbetGecmisiTemizle(sessionId: string) {
   await db.sohbetMesajlari.where('sessionId').equals(sessionId).delete()
 }
+
+export async function apiKeyKaydet(key: string) {
+  if (!key) return
+  await db.ayarlar.put({ key: 'apiKey', value: key })
+}
+
+export async function apiKeyYukle(): Promise<string> {
+  const row = await db.ayarlar.get('apiKey')
+  return row?.value || ''
+}
+
+export async function apiKeySil() {
+  await db.ayarlar.delete('apiKey')
+}
+
+export async function githubBilgiKaydet(bilgi: { kullaniciAdi: string; avatar: string; token: string }) {
+  await db.ayarlar.put({ key: 'githubBilgi', value: JSON.stringify(bilgi) })
+}
+
+export async function githubBilgiYukle(): Promise<{ kullaniciAdi: string; avatar: string; token: string } | null> {
+  const row = await db.ayarlar.get('githubBilgi')
+  if (!row?.value) return null
+  try {
+    return JSON.parse(row.value)
+  } catch {
+    return null
+  }
+}
