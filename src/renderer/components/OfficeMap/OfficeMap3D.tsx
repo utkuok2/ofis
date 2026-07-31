@@ -401,30 +401,68 @@ function mobilyaEkip(group: THREE.Group, x: number, z: number, cb: { x: number; 
   }
 }
 
-function aiKarakter(scene: THREE.Scene | THREE.Group, x: number, z: number, renk: string) {
-  const color = new THREE.Color(renk)
+function aiKarakter(scene: THREE.Scene | THREE.Group, x: number, z: number, renk: string, yonetici = false) {
   const g = new THREE.Group()
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(8, 10, 24, 8),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.4, emissive: color, emissiveIntensity: 0.15 })
-  )
-  body.position.y = 12
-  body.castShadow = true
-  g.add(body)
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(7, 10, 10),
-    new THREE.MeshStandardMaterial({ color: 0x9333ea, roughness: 0.2, emissive: 0x9333ea, emissiveIntensity: 0.3 })
-  )
-  head.position.y = 27
-  head.castShadow = true
-  g.add(head)
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(10, 0.8, 8, 24),
-    new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x7c3aed, emissiveIntensity: 0.5, transparent: true, opacity: 0.6 })
-  )
-  ring.position.y = 14
-  ring.rotation.x = Math.PI / 2
-  g.add(ring)
+  const kumas = new THREE.MeshStandardMaterial({ color: new THREE.Color(renk), roughness: 0.7 })
+  const koyu = new THREE.MeshStandardMaterial({ color: 0x2d3436, roughness: 0.8 })
+  const ten = new THREE.MeshStandardMaterial({ color: 0xf1c27d, roughness: 0.6 })
+  const sac = new THREE.MeshStandardMaterial({ color: 0x3b2b20, roughness: 0.9 })
+  const beyaz = new THREE.MeshStandardMaterial({ color: 0xf8f8f8, roughness: 0.4 })
+  const siyah = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 })
+
+  for (const bx of [-2.8, 2.8]) {
+    const bacak = new THREE.Mesh(new THREE.BoxGeometry(3.2, 10, 3.2), koyu)
+    bacak.position.set(bx, 5, 0)
+    bacak.castShadow = true
+    g.add(bacak)
+  }
+
+  const govde = new THREE.Mesh(new THREE.BoxGeometry(10, 13, 5), kumas)
+  govde.position.y = 16.5
+  govde.castShadow = true
+  g.add(govde)
+
+  for (const kx of [-6.6, 6.6]) {
+    const kol = new THREE.Mesh(new THREE.BoxGeometry(2.6, 11, 2.6), kumas)
+    kol.position.set(kx, 16.5, 0)
+    kol.castShadow = true
+    g.add(kol)
+  }
+
+  const kafa = new THREE.Mesh(new THREE.SphereGeometry(5.8, 12, 12), ten)
+  kafa.position.y = 31
+  kafa.castShadow = true
+  g.add(kafa)
+
+  const sacTop = new THREE.Mesh(new THREE.SphereGeometry(6, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), sac)
+  sacTop.position.y = 31.5
+  g.add(sacTop)
+
+  const goz = (gx: number) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.6, 0.4), beyaz)
+    b.position.set(gx, 32.2, 5.4)
+    g.add(b)
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.4), siyah)
+    p.position.set(gx, 32.2, 5.6)
+    g.add(p)
+  }
+  goz(-1.9)
+  goz(1.9)
+  const agiz = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 0.4), siyah)
+  agiz.position.set(0, 30.1, 5.7)
+  g.add(agiz)
+
+  if (yonetici) {
+    for (const gx of [-1.9, 1.9]) {
+      const cam = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.9, 0.5), siyah)
+      cam.position.set(gx, 32.2, 5.15)
+      g.add(cam)
+    }
+    const kopru = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 0.5), siyah)
+    kopru.position.set(0, 32.2, 5.15)
+    g.add(kopru)
+  }
+
   g.position.set(x, 0, z)
   scene.add(g)
   return g
@@ -499,6 +537,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
 
   interface DavranisDurum { mod: 'serbest' | 'calisiyor'; hedef: { x: number; z: number } | null; isNoktasi: { x: number; z: number } | null; varisZamani: number }
   const davranisRef = useRef<Map<number, DavranisDurum>>(new Map())
+  const gorusmedekiEkipRef = useRef<number | null>(null)
   const yoneticiDavranisRef = useRef<Map<number, { hedef: { x: number; z: number } | null; varisZamani: number }>>(new Map())
   const gorevBitisRef = useRef<Map<number, { bitis: number; deneme: number; ekipId: number }>>(new Map())
   const raporRef = useRef<Map<number, { mesaj: string; tamam: boolean; sonYolYenile: number }>>(new Map())
@@ -1233,6 +1272,18 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
         h.grup.rotation.y = Math.atan2(dx, dz)
       }
 
+      const gorusmedeEkip = gorusmedekiEkipRef.current
+      if (gorusmedeEkip !== null) {
+        const kayit2 = aiHaritaRef.current.get(gorusmedeEkip)
+        const k2 = useOfisStore.getState().kullanici
+        if (kayit2 && k2) {
+          const g2 = kayit2.uye?.grup ?? kayit2.yonetici?.grup
+          if (g2 && !aiHareketlerRef.current.some((h) => h.grup === g2) && (g2.position.y >= FLOOR2_Y - 1 ? 2 : 1) === currentFloorRef.current) {
+            g2.rotation.y = Math.atan2(k2.konum_x - g2.position.x, k2.konum_y - g2.position.z)
+          }
+        }
+      }
+
       const balon = balonRef.current
       if (balon && Date.now() > balon.bitis) {
         balon.balon.parent?.remove(balon.balon)
@@ -1360,6 +1411,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
         }
         const yonId = nearestYoneticiTeamRef.current
         if (yonId !== null && !sittingRef.current) {
+          gorusmeBaslat(yonId, 'yonetici')
           const store = useOfisStore.getState()
           store.setSeciliEkipId(yonId)
           store.setSohbetModu('yonetici')
@@ -1370,6 +1422,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
         }
         const aiId = nearestAiTeamRef.current
         if (aiId !== null && !sittingRef.current) {
+          gorusmeBaslat(aiId, 'uye')
           const store = useOfisStore.getState()
           store.setSeciliEkipId(aiId)
           store.setSohbetModu('ekip')
@@ -1440,6 +1493,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
     yoneticiDavranisRef.current.clear()
     gorevBitisRef.current.clear()
     raporRef.current.clear()
+    gorusmedekiEkipRef.current = null
   }, [ekipler])
 
   useEffect(() => {
@@ -1557,7 +1611,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
       cb.push({ x: ox + 45, z: oz + 40, w: 14, d: 14, f: 2 })
       cb.push({ x: ox + 115, z: oz + 65, w: 14, d: 14, f: 2 })
 
-      const ai = aiKarakter(group, ox + 100, oz + 95, '#' + color.getHexString())
+      const ai = aiKarakter(group, ox + 100, oz + 95, '#' + color.getHexString(), true)
       aiCharsRef.current.push(ai)
       const ySpot: AiKayitSpot = { x: ox + 100, z: oz + 95, ekipId: ekip.id, kat: 2, yonetici: true }
       aiSpotsRef.current.push(ySpot)
@@ -1643,6 +1697,23 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
       if (grupSet.has(h[i].grup)) h.splice(i, 1)
     }
     for (const g of grupSet) raporGrupRef.current.delete(g)
+  }
+
+  const gorusmeBaslat = (ekipId: number, tip: 'uye' | 'yonetici') => {
+    const kayit = aiHaritaRef.current.get(ekipId)
+    const k = useOfisStore.getState().kullanici
+    if (!kayit || !k) return
+    const g = tip === 'yonetici' ? kayit.yonetici?.grup : kayit.uye?.grup
+    if (!g) return
+    yuruyusuKes(ekipId)
+    gorusmedekiEkipRef.current = ekipId
+    const yaw = yawRef.current
+    const hx = Math.max(2, Math.min(COLS * TILE - 2, k.konum_x - Math.sin(yaw) * 35))
+    const hz = Math.max(2, Math.min(ROWS * TILE - 2, k.konum_y - Math.cos(yaw) * 35))
+    const hedefKat = currentFloorRef.current
+    const basKat = g.position.y >= FLOOR2_Y - 1 ? 2 : 1
+    const yol = yuruyusYolu(g.position.x, g.position.z, basKat, hx, hz, hedefKat)
+    aiHareketlerRef.current.push({ grup: g, yollar: yol, hedefIdx: 1, spot: null, oks: null, donus: false })
   }
 
   const toplantiyaYurut = (ekipId: number) => {
@@ -1760,7 +1831,11 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
     raporRef.current.set(ekipId, { mesaj, tamam, sonYolYenile: 0 })
     const kayit = aiHaritaRef.current.get(ekipId)
     if (!kayit?.uye) { raporRef.current.delete(ekipId); return }
-    if (useOfisStore.getState().toplantiEkipleri.includes(ekipId)) return
+    if (useOfisStore.getState().toplantiEkipleri.includes(ekipId) || gorusmedekiEkipRef.current === ekipId) {
+      raporRef.current.delete(ekipId)
+      balonGoster(mesaj, tamam ? '#38a169' : '#d69e2e')
+      return
+    }
     raporBaslat(ekipId, kayit, raporRef.current.get(ekipId)!)
   }
   useImperativeHandle(forwardRef, () => ({ gorevRaporla }))
@@ -1768,6 +1843,11 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
   const davranisTara = () => {
     const store = useOfisStore.getState()
     const simdi = performance.now()
+
+    const gorusmede = gorusmedekiEkipRef.current
+    if (gorusmede !== null && (store.aktifPanel !== 'sohbet' || store.seciliEkipId !== gorusmede)) {
+      gorusmedekiEkipRef.current = null
+    }
 
     if (store.multiplayerMod !== 'katilimci' && simdi - gorevScanRef.current > 2500) {
       gorevScanRef.current = simdi
@@ -1809,7 +1889,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
 
     for (const [ekipId, kayit] of aiHaritaRef.current) {
       if (!kayit.uye) continue
-      if (toplantidaki.includes(ekipId) || raporRef.current.has(ekipId)) continue
+      if (toplantidaki.includes(ekipId) || raporRef.current.has(ekipId) || gorusmedekiEkipRef.current === ekipId) continue
       const g = kayit.uye.grup
       if (hareketler.some((h) => h.grup === g)) continue
       const bekliyor = store.gorevler.some((x) => x.ekip_id === ekipId && x.durum === 'bekliyor')
