@@ -22,7 +22,7 @@ function baglantiKur(conn: any) {
     mesajGonder(conn, {
       type: 'kullanici_bilgi',
       payload: {
-        peerId: conn.peer,
+        peerId: useOfisStore.getState().peerId,
         kullaniciAdi: store.kullaniciAdi,
         avatar: store.githubAvatar,
         githubKullanici: store.githubKullanici || store.kullaniciAdi,
