@@ -468,10 +468,18 @@ function aiKarakter(scene: THREE.Scene | THREE.Group, x: number, z: number, renk
   return g
 }
 
-function ekipEtiketiOlustur(metin: string, renk: string) {
+function ekipEtiketiOlustur(metin: string, renk: string, altMetin?: string) {
   const d = document.createElement('div')
-  d.style.cssText = `color:#fff;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.75);border-left:3px solid ${renk};padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;`
-  d.textContent = metin
+  d.style.cssText = `display:flex;flex-direction:column;align-items:center;color:#fff;font-size:11px;font-weight:bold;text-shadow:0 1px 4px rgba(0,0,0,0.9);background:rgba(0,0,0,0.75);border-left:3px solid ${renk};padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;`
+  const u = document.createElement('div')
+  u.textContent = metin
+  d.appendChild(u)
+  if (altMetin) {
+    const a = document.createElement('div')
+    a.style.cssText = 'font-size:8px;opacity:0.85;text-align:center;'
+    a.textContent = altMetin
+    d.appendChild(a)
+  }
   return new CSS2DObject(d)
 }
 
@@ -1556,8 +1564,11 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
 
     let mIdx = 0
     const ofisW = 170, ofisD = 140
+    const gelenYoneticiler = new Set<string>()
     for (const ekip of ekipler) {
       if (!ekip.yonetici_adi) continue
+      if (gelenYoneticiler.has(ekip.yonetici_adi)) continue
+      gelenYoneticiler.add(ekip.yonetici_adi)
       const row = mIdx < 5 ? 0 : 1
       const col = mIdx < 5 ? mIdx : mIdx - 5
       mIdx++
@@ -1591,7 +1602,7 @@ export const OfficeMap3D = forwardRef<OfficeMap3DRef, {}>(function OfficeMap3D(_
 
       const ai = aiKarakter(group, ox + 100, oz + 95, '#' + color.getHexString(), true)
       aiCharsRef.current.push(ai)
-      const etiket = ekipEtiketiOlustur(ekip.ad, '#' + color.getHexString())
+      const etiket = ekipEtiketiOlustur(`👔 ${ekip.yonetici_adi}`, '#' + color.getHexString(), ekip.ad)
       etiket.position.set(0, 43, 0)
       etiket.visible = currentFloorRef.current === 2
       ai.add(etiket)
