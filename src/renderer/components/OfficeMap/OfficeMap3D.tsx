@@ -114,6 +114,165 @@ function bilgisayar(scene: THREE.Scene | THREE.Group, x: number, z: number, yBas
   scene.add(kb)
 }
 
+function kitaplik(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0, rot = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, yBase, z)
+  g.rotation.y = rot
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x6b4a2b, roughness: 0.7 })
+  const w = 16, h = 26, d = 6
+  for (const [dx, dy, dw, dh, dd] of [
+    [-w / 2, h / 2, 1.5, h, d], [w / 2, h / 2, 1.5, h, d], [0, h / 2, w, 1.5, d], [0, 1, w, 1.5, d]
+  ] as [number, number, number, number, number][]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(dw, dh, dd), frameMat)
+    m.position.set(dx, dy, 0)
+    m.castShadow = true
+    g.add(m)
+  }
+  const bookColors = [0xc0392b, 0x2980b9, 0x27ae60, 0xf39c12, 0x8e44ad, 0x16a085]
+  for (const s of [8, 14, 20]) {
+    for (let j = 0; j < 8; j++) {
+      const b = new THREE.Mesh(
+        new THREE.BoxGeometry(1.1, 3.5 + (j % 3) * 1.5, 3.5),
+        new THREE.MeshStandardMaterial({ color: bookColors[(s + j) % bookColors.length], roughness: 0.9 })
+      )
+      b.position.set(-w / 2 + 2.2 + j * 1.35, s + 2.75 + (j % 3) * 0.5, -1.2)
+      b.castShadow = true
+      g.add(b)
+    }
+  }
+  scene.add(g)
+}
+
+function yazTahtasi(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0, rot = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, yBase, z)
+  g.rotation.y = rot
+  const board = new THREE.Mesh(new THREE.BoxGeometry(24, 14, 0.6), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 }))
+  board.position.set(0, 16, 0)
+  board.castShadow = true
+  g.add(board)
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4 })
+  for (const [dx, dy, dw, dh] of [[-12, 16, 0.8, 14], [12, 16, 0.8, 14], [0, 9.2, 24.8, 0.8], [0, 22.8, 24.8, 0.8]]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(dw, dh, 0.7), frameMat)
+    m.position.set(dx, dy, 0)
+    g.add(m)
+  }
+  for (const dx of [-10, 10]) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(0.8, 9, 0.8), frameMat)
+    l.position.set(dx, 4.5, 0)
+    l.castShadow = true
+    g.add(l)
+  }
+  const tray = new THREE.Mesh(new THREE.BoxGeometry(24, 1.2, 2), frameMat)
+  tray.position.set(0, 3, 1.5)
+  g.add(tray)
+  const marker = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 3), new THREE.MeshStandardMaterial({ color: 0xe53e3e }))
+  marker.position.set(-8, 3.6, 2)
+  g.add(marker)
+  scene.add(g)
+}
+
+function dosyaDolabi(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0, rot = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, yBase, z)
+  g.rotation.y = rot
+  const body = new THREE.Mesh(new THREE.BoxGeometry(10, 14, 7), new THREE.MeshStandardMaterial({ color: 0x718096, roughness: 0.5, metalness: 0.4 }))
+  body.position.set(0, 7, 0)
+  body.castShadow = true
+  g.add(body)
+  const handleMat = new THREE.MeshStandardMaterial({ color: 0x2d3748, metalness: 0.6 })
+  for (const dy of [5, 12]) {
+    const h = new THREE.Mesh(new THREE.BoxGeometry(4, 0.6, 0.8), handleMat)
+    h.position.set(0, dy, 3.6)
+    g.add(h)
+  }
+  scene.add(g)
+}
+
+function bitki(scene: THREE.Scene | THREE.Group, x: number, z: number, k = 1, yBase = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, yBase, z)
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(5 * k, 3.5 * k, 6 * k, 10), new THREE.MeshStandardMaterial({ color: 0xb5533a, roughness: 0.8 }))
+  pot.position.set(0, 3 * k, 0)
+  pot.castShadow = true
+  g.add(pot)
+  const soil = new THREE.Mesh(new THREE.CylinderGeometry(4.6 * k, 4.6 * k, 1 * k, 10), new THREE.MeshStandardMaterial({ color: 0x3b2a1a }))
+  soil.position.set(0, 6 * k, 0)
+  g.add(soil)
+  const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.2 * k, 10 * k, 1.2 * k), new THREE.MeshStandardMaterial({ color: 0x5d4037 }))
+  trunk.position.set(0, 11 * k, 0)
+  g.add(trunk)
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f9e44, roughness: 0.8 })
+  for (const [dx, dy, dz, r] of [[0, 18 * k, 0, 6 * k], [4 * k, 15 * k, 2 * k, 3.5 * k], [-3.5 * k, 16 * k, -3 * k, 3 * k], [2 * k, 14 * k, -4 * k, 2.5 * k]]) {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), leafMat)
+    s.position.set(dx, dy, dz)
+    s.castShadow = true
+    g.add(s)
+  }
+  scene.add(g)
+}
+
+function hali(scene: THREE.Scene | THREE.Group, x: number, z: number, w: number, d: number, color = 0x2c5282, yBase = 0) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.15, d), new THREE.MeshStandardMaterial({ color, roughness: 1 }))
+  m.position.set(x, yBase + 0.08, z)
+  m.receiveShadow = true
+  scene.add(m)
+}
+
+function bank(scene: THREE.Scene | THREE.Group, x: number, z: number, rot = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, 0, z)
+  g.rotation.y = rot
+  const wood = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 })
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(18, 2, 6), wood)
+  seat.position.set(0, 4, 0)
+  seat.castShadow = true
+  g.add(seat)
+  const back = new THREE.Mesh(new THREE.BoxGeometry(18, 8, 1.5), wood)
+  back.position.set(0, 8.5, -3.5)
+  back.castShadow = true
+  g.add(back)
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x4a3728 })
+  for (const dx of [-7, 7]) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4, 1.5), legMat)
+    l.position.set(dx, 2, 0)
+    g.add(l)
+  }
+  scene.add(g)
+}
+
+function tavanLambasi(scene: THREE.Scene | THREE.Group, x: number, z: number, y: number) {
+  const g = new THREE.Group()
+  const housing = new THREE.Mesh(new THREE.BoxGeometry(20, 1.5, 10), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5 }))
+  g.add(housing)
+  const panel = new THREE.Mesh(
+    new THREE.BoxGeometry(18, 0.4, 8),
+    new THREE.MeshStandardMaterial({ color: 0xfff6e5, emissive: 0xfff1d6, emissiveIntensity: 2 })
+  )
+  panel.position.set(0, -1, 0)
+  g.add(panel)
+  g.position.set(x, y, z)
+  scene.add(g)
+}
+
+function resepsiyon(scene: THREE.Scene | THREE.Group, x: number, z: number, yBase = 0, rot = 0) {
+  const g = new THREE.Group()
+  g.position.set(x, yBase, z)
+  g.rotation.y = rot
+  const body = new THREE.Mesh(new THREE.BoxGeometry(40, 7, 12), new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }))
+  body.position.set(0, 3.5, 0)
+  body.castShadow = true; body.receiveShadow = true
+  g.add(body)
+  const top = new THREE.Mesh(new THREE.BoxGeometry(44, 1.5, 16), new THREE.MeshStandardMaterial({ color: 0xa0522d, roughness: 0.7 }))
+  top.position.set(0, 7.75, 0)
+  top.castShadow = true
+  g.add(top)
+  const front = new THREE.Mesh(new THREE.BoxGeometry(42, 5, 0.5), new THREE.MeshStandardMaterial({ color: 0x6b4226, roughness: 0.8 }))
+  front.position.set(0, 3.5, 6.5)
+  g.add(front)
+  scene.add(g)
+}
+
 function toplantiMasasi(scene: THREE.Scene | THREE.Group, x: number, z: number, w = 60, d = 30, yBase = 0) {
   const mat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.7, metalness: 0.1 })
   const top = new THREE.Mesh(new THREE.BoxGeometry(w, 2, d), mat)
@@ -327,6 +486,15 @@ export function OfficeMap3D() {
       canopy.castShadow = true
       sc.add(canopy)
     }
+    function cali(x: number, z: number) {
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f9e44, roughness: 0.9 })
+      for (const [dx, dz, r] of [[0, 0, 6], [4, 3, 4], [-4, 2, 4.5]] as const) {
+        const s = new THREE.Mesh(new THREE.SphereGeometry(r, 7, 7), leafMat)
+        s.position.set(x + dx, 3, z + dz)
+        s.castShadow = true
+        sc.add(s)
+      }
+    }
     for (let x = -margin + 30; x < COLS * TILE + margin; x += 150) {
       tree(x, -40)
       tree(x, ROWS * TILE + 40)
@@ -369,6 +537,53 @@ export function OfficeMap3D() {
       sc.add(c)
       vehicles.push({ mesh: c, path, speed: 20 + Math.random() * 15, targetIdx: 1, t: 0 })
     }
+
+    hali(sc, COLS * TILE / 2, TILE * 1.5, COLS * TILE - 140, 16, 0x2b6cb0)
+    for (const c of [2, 6, 14, 18, 26]) {
+      bitki(sc, c * TILE + TILE / 2, TILE * 1.5 - 12)
+    }
+    bank(sc, 10 * TILE + TILE / 2, TILE * 1.5 + 4)
+    bank(sc, 20 * TILE + TILE / 2, TILE * 1.5 + 4)
+
+    for (let x = 60; x < COLS * TILE - 40; x += 130) {
+      cali(x, -8)
+      cali(x, ROWS * TILE + 8)
+    }
+    for (let z = 60; z < ROWS * TILE - 40; z += 130) {
+      cali(-8, z)
+      cali(COLS * TILE + 8, z)
+    }
+    const flowerColors = [0xff6b6b, 0xfeca57, 0xffffff, 0xd8a0ff, 0x5eead4]
+    for (let i = 0; i < 70; i++) {
+      let fx: number, fz: number
+      const side = i % 4
+      if (side === 0) { fx = 40 + Math.random() * (COLS * TILE - 80); fz = -60 - Math.random() * (margin - 100) }
+      else if (side === 1) { fx = 40 + Math.random() * (COLS * TILE - 80); fz = ROWS * TILE + 60 + Math.random() * (margin - 100) }
+      else if (side === 2) { fx = -60 - Math.random() * (margin - 100); fz = 40 + Math.random() * (ROWS * TILE - 80) }
+      else { fx = COLS * TILE + 60 + Math.random() * (margin - 100); fz = 40 + Math.random() * (ROWS * TILE - 80) }
+      const stem = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.5, 0.4), new THREE.MeshStandardMaterial({ color: 0x2f9e44 }))
+      stem.position.set(fx, 1.25, fz)
+      sc.add(stem)
+      const fl = new THREE.Mesh(new THREE.SphereGeometry(1.3, 6, 6), new THREE.MeshStandardMaterial({
+        color: flowerColors[i % flowerColors.length],
+        emissive: flowerColors[i % flowerColors.length],
+        emissiveIntensity: 0.15
+      }))
+      fl.position.set(fx, 2.8, fz)
+      sc.add(fl)
+    }
+
+    resepsiyon(sc, 600, 690)
+    bilgisayar(sc, 612, 690, 2.5)
+    bitki(sc, 540, 700, 1.4)
+    bank(sc, 665, 705, Math.PI)
+
+    const girDiv = document.createElement('div')
+    girDiv.style.cssText = 'color:#e2e8f0;font-size:13px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
+    girDiv.textContent = '🚪 Giriş / Resepsiyon'
+    const girLabel = new CSS2DObject(girDiv)
+    girLabel.position.set(600, 12, 650)
+    sc.add(girLabel)
 
     const nSteps = Math.ceil(FLOOR2_Y / 8)
     const stairZEnd = ROWS * TILE - 80 - nSteps * 16
@@ -458,6 +673,18 @@ export function OfficeMap3D() {
 
     chairPositionsRef.current.push(...chairs2)
     meetingChairPositionsRef.current = chairs2
+
+    hali(sc, tx, tz, tw - 30, td - 30, 0x7f1d1d, FLOOR2_Y)
+    kitaplik(sc, tx + 90, tz - td / 2 + 8, FLOOR2_Y, Math.PI)
+    kitaplik(sc, tx - 90, tz - td / 2 + 8, FLOOR2_Y, Math.PI)
+    yazTahtasi(sc, tx, tz - td / 2 + 4, FLOOR2_Y + 2)
+    bitki(sc, tx - tw / 2 + 20, tz + td / 2 - 20, 1.2, FLOOR2_Y)
+    bitki(sc, tx + tw / 2 - 20, tz + td / 2 - 20, 1.2, FLOOR2_Y)
+    tavanLambasi(sc, tx - 60, tz, FLOOR2_Y + tWallH - 2)
+    tavanLambasi(sc, tx + 60, tz, FLOOR2_Y + tWallH - 2)
+    const spot = new THREE.PointLight(0xfff1d6, 900, 600)
+    spot.position.set(tx, FLOOR2_Y + tWallH - 10, tz)
+    sc.add(spot)
 
     const tDiv = document.createElement('div')
     tDiv.style.cssText = 'color:#e2e8f0;font-size:14px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.9);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:6px;pointer-events:none;'
@@ -771,6 +998,11 @@ export function OfficeMap3D() {
       }
 
       mobilyaEkip(group, ekip.oda_konum_x, ekip.oda_konum_y, cb)
+      hali(group, ekip.oda_konum_x + ekip.oda_genislik / 2, ekip.oda_konum_y + 30, ekip.oda_genislik - 24, 85, 0x2c5282)
+      kitaplik(group, ekip.oda_konum_x + ekip.oda_genislik - 24, ekip.oda_konum_y + ekip.oda_yukseklik - 8, 0, Math.PI)
+      dosyaDolabi(group, ekip.oda_konum_x + ekip.oda_genislik - 36, ekip.oda_konum_y + ekip.oda_yukseklik - 8, 0, Math.PI)
+      yazTahtasi(group, ekip.oda_konum_x + ekip.oda_genislik - 30, ekip.oda_konum_y + 5)
+      bitki(group, ekip.oda_konum_x + 12, ekip.oda_konum_y + ekip.oda_yukseklik - 12)
       for (let i = 0; i < 3; i++) {
         const ox = 30 + i * 50
         chairPositionsRef.current.push({ x: ekip.oda_konum_x + ox, z: ekip.oda_konum_y + 15, yBase: 0 })
